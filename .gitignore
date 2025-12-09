@@ -20,6 +20,10 @@ ENV/
 *.swp
 *.swo
 
+# Uploaded documents (user data - don't commit)
+backend/uploads/
+uploads/
+
 # Database
 *.db
 *.sqlite3

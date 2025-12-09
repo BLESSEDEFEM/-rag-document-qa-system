@@ -1,0 +1,51 @@
+[MASTER]
+# Python code to execute, usually for sys.path manipulation
+init-hook='import sys; sys.path.append(".")'
+
+# Files or directories to skip
+ignore=CVS,venv,env,.venv,migrations,__pycache__
+
+# Use multiple processes to speed up Pylint
+jobs=1
+
+[MESSAGES CONTROL]
+# Disable specific warnings that are too strict for our use case
+disable=
+    C0111,  # missing-docstring (we'll add these gradually)
+    C0103,  # invalid-name (allow short variable names like 'e' for exception)
+    R0903,  # too-few-public-methods (OK for simple classes)
+    R0913,  # too-many-arguments (OK for complex functions)
+    W0212,  # protected-access (sometimes needed)
+    E1101,  # no-member (false positives with SQLAlchemy)
+    C0301,  # line-too-long (we allow up to 120)
+    R0801,  # duplicate-code (OK for now)
+    W1203,  # logging-fstring-interpolation
+    W0718,  # broad-exception-caught
+    R0915,  # too-many-statements
+    R0914,  # ← ADD (too-many-locals)
+    W0613,  # ← ADD (unused-argument)
+    R1705,  # no-else-return
+    E0602,  # undefined-variable (false positive for SQLAlchemy)
+    E1102,  # not-callable (false positive for func.now())
+
+[FORMAT]
+# Maximum number of characters on a single line
+max-line-length=120
+
+# Maximum number of lines in a module
+max-module-lines=1000
+
+[BASIC]
+# Good variable names which should always be accepted
+good-names=i,j,k,ex,e,id,db,_,pk
+
+[DESIGN]
+# Maximum number of arguments for function / method
+max-args=7
+
+# Maximum number of attributes for a class
+max-attributes=10
+
+[SIMILARITIES]
+# Minimum lines number of a similarity
+min-similarity-lines=4

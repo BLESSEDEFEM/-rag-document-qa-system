@@ -105,3 +105,9 @@ async def shutdown_event():
     #cache.clear()
 
     logger.info("RAG Document Q&A API Shutting down...")
+
+
+# fastapi==0.121.1
+# uvicorn[standard]==0.38.0
+# python-multipart==0.0.20
+# python-dotenv==1.2.1

@@ -3,12 +3,19 @@ Main FastAPI application for RAG Document Q&A System.
 Production-grade API with proper structure and error handling.
 """
 
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict, Any
+# Standard library imports
 import logging
 import sys
 from datetime import datetime
+from typing import Dict, Any
+
+# Third-party imports
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+# Local application imports
+from app.router import documents
+
 
 # Configure logging (essential for production)
 logging.basicConfig(
@@ -32,11 +39,14 @@ app = FastAPI(
 # Configure CORS (Cross-Origin Resource Sharing)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register routers
+app.include_router(documents.router)
 
 # Root endpoint - health check
 @app.get("/", response_model=Dict[str, Any])
