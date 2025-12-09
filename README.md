@@ -49,3 +49,66 @@ Coming soon...
 ## 📄 License
 
 MIT
+
+## 🌿 Git Branching Strategy
+
+### Branch Structure
+
+- **`main`** - Production-ready code only
+  - Always stable and deployable
+  - Never commit directly to main
+  - Only merge from `dev` after testing
+
+- **`dev`** - Development branch
+  - Default working branch
+  - Integrate features here
+  - Test before merging to main
+
+- **`feature/*`** - Feature branches (optional)
+  - Create from `dev`: `git checkout -b feature/new-feature dev`
+  - Work on specific features
+  - Merge back to `dev` when complete
+
+### Workflow
+
+1. **Start new work:**
+```bash
+   git checkout dev
+   git pull origin dev
+   git checkout -b feature/your-feature-name
+```
+
+2. **During development:**
+```bash
+   git add .
+   git commit -m "Descriptive message"
+```
+
+3. **Finish feature:**
+```bash
+   git checkout dev
+   git merge feature/your-feature-name
+   git branch -d feature/your-feature-name
+```
+
+4. **Release to production:**
+```bash
+   git checkout main
+   git merge dev
+   git push origin main
+```
+
+### Quick Commands
+```bash
+# See all branches
+git branch
+
+# Switch branch
+git checkout <branch-name>
+
+# Create and switch to new branch
+git checkout -b <new-branch-name>
+
+# Delete branch
+git branch -d <branch-name>
+```
