@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Create router instance
 router = APIRouter(
-    prefix="/api/documents",
+    # prefix="/api/documents",
     tags=["documents"],
     responses={404: {"description": "Not found"}}
 )
@@ -463,7 +463,7 @@ async def list_documents(db: Session = Depends(get_db)):
     logger.info("Document list requested")
 
     # Query database for all non-deleted documents
-    documents = db.query(Document).filter(Document.is_deleted is False).all()
+    documents = db.query(Document).filter(Document.is_deleted == False).all()
 
     return [
         {
