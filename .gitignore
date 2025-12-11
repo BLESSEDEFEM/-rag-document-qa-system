@@ -4,6 +4,8 @@ __pycache__/
 *$py.class
 *.so
 .Python
+*.pyc
+*.pyo
 env/
 venv/
 ENV/
@@ -13,6 +15,7 @@ ENV/
 .env
 .env.local
 *.env
+.env.*.local
 
 # IDE
 .vscode/
