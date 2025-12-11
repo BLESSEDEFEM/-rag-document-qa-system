@@ -16,6 +16,14 @@ from app.services.chunking_service import chunk_text
 from app.services.embedding_service import embedding_service
 from app.services.pinecone_service import pinecone_service
 from app.services.llm_service import llm_service
+from app.services.cache_service import cache_service
+from pydantic import BaseModel
+
+# Request models
+class QueryRequest(BaseModel):
+    query: str
+    top_k: int = 5
+    min_score: float = 0.3
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -209,6 +217,9 @@ async def upload_document(
             status_code=500,
             detail=f"Error saving to database: {str(e)}"
         ) from e
+        
+        # Invalidate document list cache
+        cache_service.delete("documents:list")
 
     return {
         "message": "Document uploaded and processed succesfully",
@@ -230,11 +241,12 @@ async def upload_document(
 
 @router.post("/query", response_model=Dict[str, Any])
 async def query_documents(
-    query: str,
-    top_k: int = 5,
-    min_score: float = 0.3,
+    request: QueryRequest,
     _db: Session = Depends(get_db)
 ):
+    query = request.query
+    top_k = request.top_k
+    min_score = request.min_score
     """
     Query documents using semantic search.
 
@@ -338,11 +350,12 @@ async def query_documents(
 
 @router.post("/answer", response_model=Dict[str, Any])
 async def answer_question(
-    query: str,
-    top_k: int = 5,
-    min_score: float = 0.3,
+    request: QueryRequest,
     _db: Session = Depends(get_db)
 ):
+    query = request.query
+    top_k = request.top_k
+    min_score = request.min_score
     """
     Answer user question using RAG (Retrieval-Augmented Generation).
 
@@ -458,14 +471,21 @@ async def answer_question(
 @router.get("/list", response_model=List[Dict[str, Any]])
 async def list_documents(db: Session = Depends(get_db)):
     """
-    List all uploaded documents.
+    List all uploaded documents with Redis caching.
     """
     logger.info("Document list requested")
-
-    # Query database for all non-deleted documents
+    
+    # Try cache first
+    cache_key = "documents:list"
+    cached = cache_service.get(cache_key)
+    if cached:
+        logger.info("Returning cached document list")
+        return cached
+    
+    # Cache miss - query database
     documents = db.query(Document).filter(Document.is_deleted == False).all()
-
-    return [
+    
+    result = [
         {
             "id": doc.id,
             "filename": doc.original_filename,
@@ -479,7 +499,11 @@ async def list_documents(db: Session = Depends(get_db)):
         }
         for doc in documents
     ]
-
+    
+    # Cache for 5 minutes
+    cache_service.set(cache_key, result, ttl=300)
+    
+    return result
 
 @router.get("/health")
 async def documents_health():

@@ -46,7 +46,7 @@ app.add_middleware(
 )
 
 # Register routers
-app.include_router(documents.router)
+app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 
 # Root endpoint - health check
 @app.get("/", response_model=Dict[str, Any])
@@ -64,15 +64,19 @@ async def root():
     }
 
 # Health check endpoint (standard for production)
-@app.get("/health", response_model=Dict[str, str])
+@app.get("/health", response_model=Dict[str, Any])
 async def health_check():
     """
-    Health check endpoint for monitoring and load balancers.
+    Health check endpoint with Redis status.
     """
+    from app.services.cache_service import cache_service
+    
     logger.info("Health check requested")
+    
     return {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
+        "redis": "connected" if cache_service.is_connected() else "disconnected"
     }
 
 # Startup event
