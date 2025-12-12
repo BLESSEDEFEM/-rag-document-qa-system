@@ -125,6 +125,8 @@ async def upload_document(
         try:
             logger.info("Chunking text...")
             chunks = chunk_text(extracted_text, chunk_size=500, overlap=50)
+            # Clean NULL bytes from chunks
+            chunks = [chunk.replace('\x00', '') for chunk in chunks] if chunks else None
             chunk_count = len(chunks)
             logger.info("Created %d chunks", chunk_count)
 
@@ -155,7 +157,7 @@ async def upload_document(
             file_path=file_path,
             file_size=file_size,
             file_type=file_extension.replace(".", ""),
-            extracted_text=extracted_text,
+            extracted_text=extracted_text.replace('\x00', '') if extracted_text else None,
             page_count=page_count,
             status=status,
             # Embedding fields
