@@ -13,7 +13,7 @@ from app.models import Document
 # Import services
 from app.services import file_storage, text_extraction
 from app.services.chunking_service import chunk_text
-# from app.services.embedding_service import embedding_service
+from app.services.embedding_service import embedding_service
 from app.services.pinecone_service import pinecone_service
 from app.services.llm_service import llm_service
 from app.services.cache_service import cache_service
@@ -132,7 +132,7 @@ async def upload_document(
 
             # Generate embeddings
             logger.info("Generate embeddings...")
-            embeddings = None  # Using Pinecone for embeddings
+            embeddings = None  # Pinecone auto-generates embeddings
             logger.info("Generated %d embeddings", len(embeddings))
 
             status = "ready"  # Fully processed
@@ -287,7 +287,7 @@ async def query_documents(
     try:
         # Step 1: Generate embedding for query
         logger.info("Generating query embedding...")
-        query_embedding = None # embedding_service.generate_embedding(query.strip())
+        query_embedding = embedding_service.generate_embedding(query.strip())
         logger.info(
             "Query embedding generated: %d dimensions",
             len(query_embedding))
@@ -392,7 +392,7 @@ async def answer_question(
     try:
         # RETRIEVAL PHASE
         logger.info("Generating query embedding...")
-        query_embedding = None  # embedding_service.generate_embedding(query.strip())
+        query_embedding = embedding_service.generate_embedding(query.strip())
 
         logger.info("Searching Pinecone for top %d matches...", top_k)
         pinecone_results = pinecone_service.query_similar(

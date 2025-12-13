@@ -1,16 +1,52 @@
 """
-Embedding service - disabled for deployment (using Pinecone instead)
+Embedding service using Pinecone auto-embeddings.
+No local model needed - Pinecone handles embedding generation.
 """
 
+import os
+import logging
+from pinecone import Pinecone
+
+logger = logging.getLogger(__name__)
+
+
 class EmbeddingService:
-    def __init__(self):
-        pass
+    """Service for generating and managing embeddings via Pinecone."""
     
-    def generate_embedding(self, text):
-        return None
+    def __init__(self):
+        """Initialize Pinecone connection."""
+        try:
+            api_key = os.getenv("PINECONE_API_KEY")
+            index_name = os.getenv("PINECONE_INDEX_NAME")
+            
+            if not api_key or not index_name:
+                logger.warning("Pinecone credentials not configured")
+                self.pc = None
+                self.index = None
+                return
+            
+            self.pc = Pinecone(api_key=api_key)
+            self.index = self.pc.Index(index_name)
+            logger.info(f"Pinecone embedding service initialized with index: {index_name}")
+        except Exception as e:
+            logger.error(f"Failed to initialize Pinecone: {e}")
+            self.pc = None
+            self.index = None
+    
+    def generate_embeddings(self, texts):
+        """
+        Generate embeddings for texts using Pinecone.
+        Returns None - Pinecone handles embeddings during upsert.
+        """
+        if not texts:
+            return None
+        
+        logger.info(f"Embedding generation delegated to Pinecone for {len(texts)} texts")
+        return None  # Pinecone auto-embeds during upsert
 
+
+# Global instance
 embedding_service = EmbeddingService()
-
 
 
 
