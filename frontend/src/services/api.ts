@@ -1,10 +1,6 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/documents';
 
 
-// **Create:** `frontend/.env.production`
-
-VITE_API_URL=https://rag-document-qa-system-production.up.railway.app/api/documents
-
 // TypeScript Interfaces - Define data shapes
 interface DocumentMetadata {
   id: number;
