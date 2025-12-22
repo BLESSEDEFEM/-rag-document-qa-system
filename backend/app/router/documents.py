@@ -190,12 +190,22 @@ async def upload_document(
                             "document_id": document.id,
                             "chunk_index": i,
                             "filename": document.original_filename,
-                            "file_type": document.file_type
+                            "file_type": document.file_type,
+                            "chunk_text": chunk
                         }
                     })
-        
-                # Pinecone auto-embeds during upsert
-                pinecone_service.index.upsert(vectors=vectors)
+                    
+                # Use pinecone_service's existing method
+                result = pinecone_service.upsert_embeddings(
+                    document_id=document.id,
+                    chunks=chunks,
+                    embeddings=[[0.0] * 768 for _ in chunks],  # Dummy embeddings
+                    metadata={
+                        "filename": document.original_filename,
+                        "file_type": document.file_type
+                    }
+                )
+                
                 logger.info("Pinecone storage successful")
                 
             except Exception as e:
