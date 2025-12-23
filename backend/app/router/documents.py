@@ -176,38 +176,32 @@ async def upload_document(
 
         logger.info("Database record created: Document ID %d", document.id)
 
-        # Store chunks in Pinecone (embeddings auto-generated)
+        # Store chunks in Pinecone with real embeddings
         if chunks and document.id:
             try:
-                logger.info("Storing %d chunks in Pinecone...", len(chunks))
+                logger.info("Generating embeddings for %d chunks...", len(chunks))
+                embeddings = embedding_service.generate_embeddings(chunks)
                 
-                vectors = []
-                for i, chunk in enumerate(chunks):
-                    vectors.append({
-                        "id": f"doc_{document.id}_chunk_{i}",
-                        "metadata": {
-                            "text": chunk,
-                            "document_id": document.id,
-                            "chunk_index": i,
-                            "filename": document.original_filename,
-                            "file_type": document.file_type,
-                            "chunk_text": chunk
-                        }
-                    })
+                if embeddings and all(embeddings):
+                    logger.info("Storing %d chunks in Pinecone...", len(chunks))
                     
-                # Use pinecone_service's existing method
-                result = pinecone_service.upsert_embeddings(
-                    document_id=document.id,
-                    chunks=chunks,
-                    embeddings=[[0.0] * 768 for _ in chunks],  # Dummy embeddings
-                    metadata={
-                        "filename": document.original_filename,
-                        "file_type": document.file_type
-                    }
-                )
-                
-                logger.info("Pinecone storage successful")
-                
+                    result = pinecone_service.upsert_embeddings(
+                        document_id=document.id,
+                        chunks=chunks,
+                        embeddings=embeddings,
+                        metadata={
+                            "filename": document.original_filename,
+                            "file_type": document.file_type
+                        }
+                    )
+                    
+                    if result["success"]:
+                        logger.info("Pinecone storage successful: %d vectors", result["upserted_count"])
+                    else:
+                        logger.error("Pinecone storage failed: %s", result.get("error"))
+                else:
+                    logger.error("Failed to generate embeddings")
+                    
             except Exception as e:
                 logger.error("Error storing in Pinecone: %s", e)
                 # Don't fail the entire upload if Pinecone fails (graceful
