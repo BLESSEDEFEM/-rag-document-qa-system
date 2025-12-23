@@ -103,3 +103,13 @@ export const answerQuestion = async (
 
   return response.json();
 };
+
+export const deleteDocument = async (documentId: number): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/${documentId}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to delete document');
+  }
+};
