@@ -1,52 +1,117 @@
 import os
 import logging
+import cohere
 from pinecone import Pinecone
-import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
 
 class EmbeddingService:
     def __init__(self):
         try:
-            # Configure Gemini
-            genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+            cohere_key = os.getenv("COHERE_API_KEY")
+            if cohere_key:
+                self.cohere_client = cohere.ClientV2(cohere_key)
+                logger.info("Embedding service initialized with Cohere")
+            else:
+                logger.warning("COHERE_API_KEY not found")
+                self.cohere_client = None
             
-            # Configure Pinecone
             api_key = os.getenv("PINECONE_API_KEY")
             index_name = os.getenv("PINECONE_INDEX_NAME")
             
-            if not api_key or not index_name:
-                logger.warning("Pinecone credentials not configured")
-                self.pc = None
-                self.index = None
-                return
-            
-            self.pc = Pinecone(api_key=api_key)
-            self.index = self.pc.Index(index_name)
-            logger.info("Embedding service initialized with Gemini")
+            if api_key and index_name:
+                self.pc = Pinecone(api_key=api_key)
+                self.index = self.pc.Index(index_name)
         except Exception as e:
-            logger.error(f"Failed to initialize: {e}")
-            self.pc = None
-            self.index = None
+            logger.error(f"Init error: {e}")
+            self.cohere_client = None
     
     def generate_embedding(self, text):
-        """Generate embedding using Gemini"""
         try:
-            result = genai.embed_content(
-                model="models/embedding-001",
-                content=text,
-                task_type="retrieval_document"
+            response = self.cohere_client.embed(
+                texts=[text],
+                model='embed-english-v3.0',
+                input_type='search_document',
+                embedding_types=['float']
             )
-            return result['embedding']
+            return response.embeddings.float[0]
         except Exception as e:
             logger.error(f"Embedding error: {e}")
             return None
     
     def generate_embeddings(self, texts):
-        """Generate embeddings for multiple texts"""
-        return [self.generate_embedding(text) for text in texts]
+        try:
+            response = self.cohere_client.embed(
+                texts=texts,
+                model='embed-english-v3.0',
+                input_type='search_document',
+                embedding_types=['float']
+            )
+            return response.embeddings.float
+        except Exception as e:
+            logger.error(f"Embedding error: {e}")
+            return None
 
 embedding_service = EmbeddingService()
+
+
+
+
+
+
+
+
+
+
+# import os
+# import logging
+# from pinecone import Pinecone
+# import google.generativeai as genai
+
+# logger = logging.getLogger(__name__)
+
+# class EmbeddingService:
+#     def __init__(self):
+#         try:
+#             # Configure Gemini
+#             genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+            
+#             # Configure Pinecone
+#             api_key = os.getenv("PINECONE_API_KEY")
+#             index_name = os.getenv("PINECONE_INDEX_NAME")
+            
+#             if not api_key or not index_name:
+#                 logger.warning("Pinecone credentials not configured")
+#                 self.pc = None
+#                 self.index = None
+#                 return
+            
+#             self.pc = Pinecone(api_key=api_key)
+#             self.index = self.pc.Index(index_name)
+#             logger.info("Embedding service initialized with Gemini")
+#         except Exception as e:
+#             logger.error(f"Failed to initialize: {e}")
+#             self.pc = None
+#             self.index = None
+    
+#     def generate_embedding(self, text):
+#         """Generate embedding using Gemini"""
+#         try:
+#             result = genai.embed_content(
+#                 model="models/embedding-001",
+#                 content=text,
+#                 task_type="retrieval_document"
+#             )
+#             return result['embedding']
+#         except Exception as e:
+#             logger.error(f"Embedding error: {e}")
+#             return None
+    
+#     def generate_embeddings(self, texts):
+#         """Generate embeddings for multiple texts"""
+#         return [self.generate_embedding(text) for text in texts]
+
+# embedding_service = EmbeddingService()
 
 
 
