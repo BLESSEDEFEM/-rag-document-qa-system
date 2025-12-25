@@ -1,7 +1,6 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/documents';
 
-
-// TypeScript Interfaces - Define data shapes
+// TypeScript Interfaces
 interface DocumentMetadata {
   id: number;
   filename: string;
@@ -55,7 +54,7 @@ interface AnswerResponse {
   retrieval_stats: RetrievalStats;
 }
 
-// API Functions with TypeScript
+// API Functions
 export const uploadDocument = async (file: File): Promise<UploadResponse> => {
   const formData = new FormData();
   formData.append('file', file);
