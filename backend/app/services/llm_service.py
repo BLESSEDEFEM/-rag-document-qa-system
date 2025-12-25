@@ -35,7 +35,9 @@ class LLMService:
         logger.info(f"Initializing LLM service (model: {GEMINI_MODEL})")
 
         if not GEMINI_API_KEY:
-            raise ValueError("GEMINI_API_KEY not found in environment variables")
+            logger.warning("GEMINI_API_KEY not found - LLM service disabled")
+            self.model = None
+            return
 
         # Configure Gemini
         genai.configure(api_key=GEMINI_API_KEY)
