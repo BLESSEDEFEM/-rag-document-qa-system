@@ -40,8 +40,9 @@ class EmbeddingService:
             return None
     
     def generate_embeddings(self, texts):
-        """Generate embeddings in batches of 96"""
+        """Generate embeddings in batches of 96 with rate limiting"""
         try:
+            import time
             all_embeddings = []
             batch_size = 96
             
@@ -56,7 +57,12 @@ class EmbeddingService:
                 all_embeddings.extend(response.embeddings.float)
                 logger.info(f"Processed batch {i//batch_size + 1}/{(len(texts)-1)//batch_size + 1}")
                 
+                # Rate limit: wait 6 seconds between batches (10 batches/min max)
+                if i + batch_size < len(texts):
+                    time.sleep(6)
+                    
             return all_embeddings
+        
         except Exception as e:
             logger.error(f"Embedding error: {e}")
             return None
