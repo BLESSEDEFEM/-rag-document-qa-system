@@ -287,9 +287,10 @@ async def query_documents(
         # Step 1: Generate embedding for query
         logger.info("Generating query embedding...")
         query_embedding = embedding_service.generate_embedding(query.strip())
-        logger.info(
-            "Query embedding generated: %d dimensions",
-            len(query_embedding))
+        logger.info(f"Query embedding generated: %d dimensions", len(query_embedding))
+        
+        if not query_embedding:
+            raise HTTPException(500, "Failed to generate query embedding")
 
         # Step 2: Search Pinecone for similar vectors
         logger.info("Searching Pinecone for top %d matches...", top_k)
@@ -318,8 +319,7 @@ async def query_documents(
 
         # Step 3.5: Filter results by minimum score
         results = [r for r in results if r["score"] >= min_score]
-        logger.info(
-            "After filtering (min_score={min_score}): %d results remain",
+        logger.info(f"After filtering (min_score={min_score}): %d results remain",
             len(results))
 
         # Step 4: Return response
@@ -336,8 +336,7 @@ async def query_documents(
             }
         }
 
-        logger.info(
-            "Query completed successfully: %d results returned",
+        logger.info(f"Query completed successfully: %d results returned",
             len(results))
         return response
 
@@ -377,8 +376,7 @@ async def answer_question(
         Dictionary with generated answer and sources
     """
 
-    logger.info(
-        "Answer request: '{query}' (top_k={top_k}, min_score={min_score})")
+    logger.info(f"Answer request: '{query}' (top_k={top_k}, min_score={min_score})")
 
     # Validate query
     if not query or len(query.strip()) == 0:
@@ -392,6 +390,9 @@ async def answer_question(
         # RETRIEVAL PHASE
         logger.info("Generating query embedding...")
         query_embedding = embedding_service.generate_embedding(query.strip())
+        
+        if not query_embedding:
+            raise HTTPException(500, "Failed to generate query embedding")
 
         logger.info("Searching Pinecone for top %d matches...", top_k)
         pinecone_results = pinecone_service.query_similar(
