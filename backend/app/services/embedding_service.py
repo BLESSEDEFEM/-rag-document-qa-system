@@ -40,14 +40,23 @@ class EmbeddingService:
             return None
     
     def generate_embeddings(self, texts):
+        """Generate embeddings in batches of 96"""
         try:
-            response = self.cohere_client.embed(
-                texts=texts,
-                model='embed-english-v3.0',
-                input_type='search_document',
-                embedding_types=['float']
-            )
-            return response.embeddings.float
+            all_embeddings = []
+            batch_size = 96
+            
+            for i in range(0, len(texts), batch_size):
+                batch = texts[i:i + batch_size]
+                response = self.cohere_client.embed(
+                    texts=batch,
+                    model='embed-english-v3.0',
+                    input_type='search_document',
+                    embedding_types=['float']
+                )
+                all_embeddings.extend(response.embeddings.float)
+                logger.info(f"Processed batch {i//batch_size + 1}/{(len(texts)-1)//batch_size + 1}")
+                
+            return all_embeddings
         except Exception as e:
             logger.error(f"Embedding error: {e}")
             return None
