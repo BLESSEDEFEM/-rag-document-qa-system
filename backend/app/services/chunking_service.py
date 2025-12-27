@@ -9,8 +9,8 @@ from typing import List
 logger = logging.getLogger(__name__)
 
 # Chunking configuartion
-CHUNK_SIZE = 500
-CHUNK_OVERLAP = 50
+CHUNK_SIZE = 1000
+CHUNK_OVERLAP = 100
 
 
 def chunk_text(

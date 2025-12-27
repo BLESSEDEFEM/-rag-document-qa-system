@@ -40,29 +40,42 @@ class EmbeddingService:
             return None
     
     def generate_embeddings(self, texts):
-        """Generate embeddings in batches of 96 with rate limiting"""
+        """Generate embeddings in batches with retry and rate limiting"""
+        import time
+        
         try:
-            import time
             all_embeddings = []
             batch_size = 96
             
             for i in range(0, len(texts), batch_size):
                 batch = texts[i:i + batch_size]
-                response = self.cohere_client.embed(
-                    texts=batch,
-                    model='embed-english-v3.0',
-                    input_type='search_document',
-                    embedding_types=['float']
-                )
-                all_embeddings.extend(response.embeddings.float)
-                logger.info(f"Processed batch {i//batch_size + 1}/{(len(texts)-1)//batch_size + 1}")
                 
-                # Rate limit: wait 6 seconds between batches (10 batches/min max)
+                # Retry up to 3 times with exponential backoff
+                for attempt in range(3):
+                    try:
+                        response = self.cohere_client.embed(
+                            texts=batch,
+                            model='embed-english-v3.0',
+                            input_type='search_document',
+                            embedding_types=['float']
+                        )
+                        all_embeddings.extend(response.embeddings.float)
+                        logger.info(f"Processed batch {i//batch_size + 1}/{(len(texts)-1)//batch_size + 1}")
+                        break  # Success, exit retry loop
+                    except Exception as e:
+                        if "429" in str(e) or "rate limit" in str(e).lower():
+                            wait_time = (2 ** attempt) * 10  # 10s, 20s, 40s
+                            logger.warning(f"Rate limit hit, waiting {wait_time}s (attempt {attempt+1}/3)")
+                            time.sleep(wait_time)
+                        else:
+                            logger.error(f"Embedding error: {e}")
+                            return None
+                
+                # Delay between batches to avoid rate limits
                 if i + batch_size < len(texts):
-                    time.sleep(6)
-                    
+                    time.sleep(7)
+            
             return all_embeddings
-        
         except Exception as e:
             logger.error(f"Embedding error: {e}")
             return None
