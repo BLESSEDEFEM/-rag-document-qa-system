@@ -24,11 +24,20 @@ interface AnswerResult {
   retrieval_stats: RetrievalStats;
 }
 
+interface ChatMessage {
+  id: string;
+  type: 'question' | 'answer';
+  content: string;
+  sources?: AnswerSource[];
+  timestamp: Date;
+}
+
 function QueryAnswer() {
   const [query, setQuery] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<AnswerResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -38,12 +47,32 @@ function QueryAnswer() {
       return;
     }
 
+    // Add question to history
+    const questionMsg: ChatMessage = {
+      id: Date.now().toString(),
+      type: 'question',
+      content: query,
+      timestamp: new Date()
+    };
+    setChatHistory(prev => [...prev, questionMsg]);
+
     setLoading(true);
     setError(null);
     setResult(null);
 
     try {
       const response = await answerQuestion(query.trim());
+      
+      // Add answer to history
+      const answerMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: 'answer',
+        content: response.answer,
+        sources: response.sources,
+        timestamp: new Date()
+      };
+      setChatHistory(prev => [...prev, answerMsg]);
+      
       setResult(response);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to get answer';
@@ -105,19 +134,51 @@ function QueryAnswer() {
         </div>
       )}
 
+      {/* Chat History */}
+      {chatHistory.length > 0 && (
+        <div className="mt-6 space-y-4 max-h-96 overflow-y-auto">
+          {chatHistory.map((msg) => (
+            <div
+              key={msg.id}
+              className={`p-4 rounded-lg transition-all ${
+                msg.type === 'question'
+                  ? 'bg-blue-50 border-l-4 border-blue-500 ml-8'
+                  : 'bg-green-50 border-l-4 border-green-500 mr-8'
+              }`}
+            >
+              <div className="flex items-start gap-2">
+                <span className="text-xl flex-shrink-0">
+                  {msg.type === 'question' ? '❓' : '✨'}
+                </span>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-slate-600 mb-1">
+                    {msg.type === 'question' ? 'Question' : 'Answer'}
+                  </p>
+                  <p className="text-slate-800 whitespace-pre-wrap">{msg.content}</p>
+                  {msg.sources && msg.sources.length > 0 && (
+                    <div className="mt-2 text-xs text-slate-500">
+                      📚 {msg.sources.length} source{msg.sources.length > 1 ? 's' : ''}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Clear History Button */}
+      {chatHistory.length > 0 && (
+        <button
+          onClick={() => setChatHistory([])}
+          className="mt-4 text-sm text-red-600 hover:text-red-800 hover:underline"
+        >
+          🗑️ Clear conversation history
+        </button>
+      )}
+
       {result && (
         <div className="mt-6 space-y-6 animate-slide-up">
-          {/* Answer */}
-          <div className="p-6 bg-gradient-to-br from-primary-50 to-blue-50 rounded-lg border-l-4 border-primary-500">
-            <h3 className="text-lg font-semibold text-slate-800 mb-3 flex items-center gap-2">
-              <span>✨</span>
-              <span>Answer</span>
-            </h3>
-            <div className="text-slate-700 leading-relaxed whitespace-pre-wrap">
-              {result.answer}
-            </div>
-          </div>
-
           {/* Sources */}
           {result.sources && result.sources.length > 0 && (
             <div>

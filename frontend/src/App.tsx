@@ -14,18 +14,18 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
       <header className="bg-gradient-to-r from-primary-600 to-primary-700 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <h1 className="text-3xl sm:text-4xl font-bold mb-2 flex items-center gap-2">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 flex items-center gap-2">
             🤖 RAG Document Q&A System
           </h1>
-          <p className="text-primary-100 text-sm sm:text-base">
+          <p className="text-primary-100 text-xs sm:text-sm lg:text-base">
             Upload documents and ask questions powered by AI
           </p>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6">
         {/* Upload Section */}
         <div className="animate-fade-in">
           <DocumentUpload onUploadSuccess={handleUploadSuccess} />
@@ -43,9 +43,9 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <p className="text-center text-slate-600 text-sm">
+      <footer className="bg-white border-t border-slate-200 mt-8 sm:mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <p className="text-center text-slate-600 text-xs sm:text-sm">
             Built with <span className="text-red-500">♥</span> using FastAPI + React + TypeScript + Pinecone + Gemini AI
           </p>
         </div>
