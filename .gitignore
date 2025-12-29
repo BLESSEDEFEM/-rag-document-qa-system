@@ -43,3 +43,17 @@ Thumbs.db
 *_secret*
 *_key*
 credentials.json
+
+# Node/Frontend
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-error.log*
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Temp/Build
+dist/
+build/
+*.egg-info/
