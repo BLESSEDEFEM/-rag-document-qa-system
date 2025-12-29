@@ -5,7 +5,7 @@ Handles RAG answer generation with retrieved context
 
 import os
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, AsyncGenerator
 from dotenv import load_dotenv
 import google.generativeai as genai
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Gemini configuration
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp")
 
 
 class LLMService:
@@ -26,6 +26,7 @@ class LLMService:
 
     Handles:
     - Answer generation from retrieved context
+    - Streaming responses
     - Prompt construction
     - Response formatting
     """
@@ -45,7 +46,7 @@ class LLMService:
         # Initialize model
         self.model = genai.GenerativeModel(GEMINI_MODEL)
 
-        logger.info(f"LLM service installed: {GEMINI_MODEL}")
+        logger.info(f"LLM service initialized: {GEMINI_MODEL}")
 
     def generate_answer(
             self,
@@ -63,18 +64,6 @@ class LLMService:
 
         Returns:
             Dictionary with answer and metadata
-
-        Example:
-            >>> context = [
-            ...     {"chunk_text": "AI improves diagnostics...", "score": 0.95, "source": {...}},
-            ...     {"chunk_text": "Machine learning helps...", "score": 0.87, "source": {...}}
-            ... ]
-            >>> result = llm_service.generate_answer(
-            ...     query="How does AI help healthcare?",
-            ...     context_chunks=context
-            ... )
-            >>> print(result['answer'])
-            "AI improves healthcare through..."
         """
         try:
             # Limit context chunks
@@ -102,7 +91,7 @@ class LLMService:
                 "sources": [
                     {
                         "filename": chunk.get("source", {}).get("filename", "Unknown"),
-                        "document_id": chunk.get("source", {}).get("document_id", 0),
+                        "document_id": chunk.get("source", {}).get("document", 0),
                         "chunk_index": chunk.get("source", {}).get("chunk_index", 0),
                         "relevance_score": chunk.get("score", 0.0)
                     }
@@ -117,6 +106,46 @@ class LLMService:
                 "error": str(e),
                 "query": query
             }
+
+    async def generate_answer_stream(
+            self,
+            query: str,
+            context_chunks: List[Dict[str, Any]],
+            max_chunks: int = 5
+    ) -> AsyncGenerator[str, None]:
+        """
+        Generate answer using LLM with streaming.
+
+        Args:
+            query: User's question
+            context_chunks: Retrieved chunks from vector search
+            max_chunks: Maximum number of chunks to use
+
+        Yields:
+            Text chunks as they're generated
+        """
+        try:
+            # Limit context chunks
+            context_chunks = context_chunks[:max_chunks]
+
+            # Build prompt
+            prompt = self._build_prompt(query, context_chunks)
+
+            logger.info(f"Streaming answer for query: '{query[:50]}...'")
+            logger.info(f"Using {len(context_chunks)} context chunks")
+
+            # Stream response
+            response = self.model.generate_content(prompt, stream=True)
+
+            for chunk in response:
+                if chunk.text:
+                    yield chunk.text
+
+            logger.info("Streaming completed successfully")
+
+        except Exception as e:
+            logger.error(f"Error streaming answer: {e}")
+            yield f"\n\n[Error: {str(e)}]"
 
     def _build_prompt(
             self,
@@ -144,19 +173,19 @@ class LLMService:
         # Build complete prompt
         prompt = f"""You are a helpful AI assistant answering questions based on provided documents.
 
-        CONTEXT FROM DOCUMENTS:
-        {context_text}
+CONTEXT FROM DOCUMENTS:
+{context_text}
 
-        USER QUESTION: {query}
+USER QUESTION: {query}
 
-        INSTRUCTIONS:
-        1. Answer the question based ONLY on the information provided in the documents above
-        2. If the documents don't contain enough information to answer, say so clearly
-        3. Cite which documents you're using (e.g., "According to Document 1...")
-        4. Be specific and factual
-        5. Keep the answer concise but complete
+INSTRUCTIONS:
+1. Answer the question based ONLY on the information provided in the documents above
+2. If the documents don't contain enough information to answer, say so clearly
+3. Cite which documents you're using (e.g., "According to Document 1...")
+4. Be specific and factual
+5. Keep the answer concise but complete
 
-        ANSWER:"""
+ANSWER:"""
 
         return prompt
 
