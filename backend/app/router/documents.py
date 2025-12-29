@@ -20,10 +20,12 @@ from app.services.cache_service import cache_service
 from pydantic import BaseModel
 
 # Request models
+# Request models
 class QueryRequest(BaseModel):
     query: str
     top_k: int = 5
     min_score: float = 0.3
+    document_id: int | None = None  # Optional document filter
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -372,12 +374,13 @@ async def answer_question(
     query = request.query
     top_k = request.top_k
     min_score = request.min_score
+    document_id = request.document_id  # Get document filter
     """
     Answer user question using RAG (Retrieval-Augmented Generation).
 
     Complete RAG pipeline:
     1. Generate query embedding
-    2. Retrieve relevant chunks from Pinecone
+    2. Retrieve relevant chunks from Pinecone (optionally filtered by document)
     3. Filter by minimum score
     4. Generate natural language answer using LLM
     5. Return answer with source citations
@@ -386,13 +389,14 @@ async def answer_question(
         query: User's question
         top_k: Number of chunks to retrieve (default: 5)
         min_score: Minimum relevance score (default: 0.3)
+        document_id: Optional - filter results to specific document
         db: Database session
 
     Returns:
         Dictionary with generated answer and sources
     """
 
-    logger.info(f"Answer request: '{query}' (top_k={top_k}, min_score={min_score})")
+    logger.info(f"Answer request: '{query}' (top_k={top_k}, min_score={min_score}, document_id={document_id})")
 
     # Validate query
     if not query or len(query.strip()) == 0:
@@ -411,9 +415,14 @@ async def answer_question(
             raise HTTPException(500, "Failed to generate query embedding")
 
         logger.info("Searching Pinecone for top %d matches...", top_k)
+        
+        # Build filter for Pinecone if document_id specified
+        pinecone_filter = {"document_id": document_id} if document_id else None
+        
         pinecone_results = pinecone_service.query_similar(
             query_embedding=query_embedding,
-            top_k=top_k
+            top_k=top_k,
+            filter_dict=pinecone_filter
         )
 
         # Format and filter results
