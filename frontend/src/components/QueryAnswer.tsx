@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { answerQuestion } from '../services/api';
+import { useState, useEffect } from 'react';
+import { answerQuestion, getDocuments } from '../services/api';
 
 interface AnswerSource {
   chunk_text: string;
@@ -32,12 +32,35 @@ interface ChatMessage {
   timestamp: Date;
 }
 
+interface Document {
+  id: number;
+  filename: string;
+}
+
 function QueryAnswer() {
   const [query, setQuery] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [result, setResult] = useState<AnswerResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  
+  // Document filter
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [selectedDocId, setSelectedDocId] = useState<number | null>(null);
+  const [showDocFilter, setShowDocFilter] = useState(false);
+
+  // Load documents
+  useEffect(() => {
+    const loadDocuments = async () => {
+      try {
+        const docs = await getDocuments();
+        setDocuments(docs);
+      } catch (err) {
+        console.error('Failed to load documents:', err);
+      }
+    };
+    loadDocuments();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -51,7 +74,9 @@ function QueryAnswer() {
     const questionMsg: ChatMessage = {
       id: Date.now().toString(),
       type: 'question',
-      content: query,
+      content: selectedDocId 
+        ? `${query} (searching in: ${documents.find(d => d.id === selectedDocId)?.filename})`
+        : query,
       timestamp: new Date()
     };
     setChatHistory(prev => [...prev, questionMsg]);
@@ -61,7 +86,13 @@ function QueryAnswer() {
     setResult(null);
 
     try {
-      const response = await answerQuestion(query.trim());
+      // Pass document filter if selected
+      const response = await answerQuestion(
+        query.trim(), 
+        5, 
+        0.3,
+        selectedDocId || undefined
+      );
       
       // Add answer to history
       const answerMsg: ChatMessage = {
@@ -92,6 +123,46 @@ function QueryAnswer() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Document Filter Toggle */}
+        {documents.length > 0 && (
+          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <span className="text-sm text-slate-600">Search specific document?</span>
+            <button
+              type="button"
+              onClick={() => setShowDocFilter(!showDocFilter)}
+              className="text-sm text-primary-600 hover:text-primary-800 font-medium"
+            >
+              {showDocFilter ? 'Hide filters' : 'Show filters'}
+            </button>
+          </div>
+        )}
+
+        {/* Document Selector */}
+        {showDocFilter && documents.length > 0 && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">
+              Filter by document (optional)
+            </label>
+            <select
+              value={selectedDocId || ''}
+              onChange={(e) => setSelectedDocId(e.target.value ? Number(e.target.value) : null)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-slate-700"
+            >
+              <option value="">All documents</option>
+              {documents.map((doc) => (
+                <option key={doc.id} value={doc.id}>
+                  📄 {doc.filename}
+                </option>
+              ))}
+            </select>
+            {selectedDocId && (
+              <p className="text-xs text-slate-500">
+                ✓ Searching only in: {documents.find(d => d.id === selectedDocId)?.filename}
+              </p>
+            )}
+          </div>
+        )}
+
         <div>
           <textarea
             value={query}
