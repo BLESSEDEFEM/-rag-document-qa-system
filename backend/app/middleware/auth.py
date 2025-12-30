@@ -4,6 +4,7 @@ Clerk JWT authentication middleware for FastAPI.
 import os
 import logging
 import base64
+import re
 from typing import Optional
 from fastapi import HTTPException, Header
 import jwt
@@ -22,34 +23,55 @@ def get_clerk_frontend_api_url(publishable_key: str) -> Optional[str]:
     """
     Extract the Frontend API URL from Clerk publishable key.
     
-    Clerk publishable keys are base64 encoded and contain the frontend API URL.
-    Format: pk_test_<base64_encoded_frontend_api>$ or pk_live_<base64_encoded_frontend_api>$
+    Clerk publishable keys encode the frontend API URL in base64.
+    Format: pk_test_<base64>$ or pk_live_<base64>$
+    
+    The base64 decodes to something like: ideal-bonefish-44.clerk.accounts.dev
     """
     try:
+        if not publishable_key:
+            return None
+            
         # Remove pk_test_ or pk_live_ prefix
         if publishable_key.startswith("pk_test_"):
-            encoded_part = publishable_key[8:]  # Remove "pk_test_"
+            encoded_part = publishable_key[8:]
         elif publishable_key.startswith("pk_live_"):
-            encoded_part = publishable_key[8:]  # Remove "pk_live_"
+            encoded_part = publishable_key[8:]
         else:
-            logger.error(f"Invalid publishable key format")
+            logger.error("Invalid publishable key format - must start with pk_test_ or pk_live_")
             return None
         
         # Remove trailing $ if present
-        if encoded_part.endswith("$"):
-            encoded_part = encoded_part[:-1]
+        encoded_part = encoded_part.rstrip('$')
         
-        # Add padding if needed for base64 decoding
-        padding = 4 - len(encoded_part) % 4
-        if padding != 4:
-            encoded_part += "=" * padding
+        # Base64 URL-safe decoding with padding fix
+        # Add padding characters if needed
+        padding_needed = 4 - (len(encoded_part) % 4)
+        if padding_needed != 4:
+            encoded_part += "=" * padding_needed
         
-        # Decode base64 to get the frontend API URL
-        decoded = base64.b64decode(encoded_part).decode('utf-8')
+        # Try standard base64 first, then URL-safe base64
+        decoded = None
+        for decode_func in [base64.b64decode, base64.urlsafe_b64decode]:
+            try:
+                decoded = decode_func(encoded_part).decode('utf-8')
+                break
+            except Exception:
+                continue
         
-        # The decoded value is the frontend API hostname (e.g., "ideal-bonefish-44.clerk.accounts.dev")
+        if not decoded:
+            logger.error("Failed to decode publishable key")
+            return None
+        
+        # Clean up the decoded string - remove any trailing null chars or whitespace
+        decoded = decoded.strip().rstrip('\x00')
+        
+        # Validate it looks like a clerk domain
+        if 'clerk' not in decoded.lower():
+            logger.error(f"Decoded value doesn't look like a Clerk domain: {decoded}")
+            return None
+        
         frontend_api_url = f"https://{decoded}"
-        
         logger.info(f"Extracted Clerk Frontend API URL: {frontend_api_url}")
         return frontend_api_url
         
@@ -62,31 +84,43 @@ class ClerkAuth:
     """Clerk JWT authentication handler."""
     
     def __init__(self):
+        logger.info(f"Initializing ClerkAuth...")
+        logger.info(f"CLERK_SECRET_KEY present: {bool(CLERK_SECRET_KEY)}")
+        logger.info(f"CLERK_PUBLISHABLE_KEY present: {bool(CLERK_PUBLISHABLE_KEY)}")
+        
         if not CLERK_SECRET_KEY or not CLERK_PUBLISHABLE_KEY:
             logger.warning("Clerk keys not found - auth disabled")
             self.enabled = False
             self.jwks_client = None
             return
         
-        self.enabled = True
-        
         # Extract Frontend API URL from publishable key
         frontend_api_url = get_clerk_frontend_api_url(CLERK_PUBLISHABLE_KEY)
         
         if not frontend_api_url:
-            logger.error("Could not extract Frontend API URL - auth disabled")
-            self.enabled = False
-            self.jwks_client = None
-            return
+            # Fallback: Try to construct from environment or use known pattern
+            logger.warning("Could not extract Frontend API URL from publishable key, trying fallback...")
+            
+            # Check if there's a CLERK_FRONTEND_API env var
+            clerk_frontend_api = os.getenv("CLERK_FRONTEND_API")
+            if clerk_frontend_api:
+                frontend_api_url = f"https://{clerk_frontend_api}"
+                logger.info(f"Using CLERK_FRONTEND_API env var: {frontend_api_url}")
+            else:
+                logger.error("No CLERK_FRONTEND_API fallback available - auth disabled")
+                self.enabled = False
+                self.jwks_client = None
+                return
         
         # Use the Frontend API JWKS endpoint (this is PUBLIC and doesn't require auth)
         jwks_url = f"{frontend_api_url}/.well-known/jwks.json"
         
         try:
             self.jwks_client = PyJWKClient(jwks_url)
-            logger.info(f"Clerk auth initialized with JWKS: {jwks_url}")
+            self.enabled = True
+            logger.info(f"Clerk auth initialized successfully with JWKS: {jwks_url}")
         except Exception as e:
-            logger.error(f"Failed to initialize JWKS client: {e}")
+            logger.error(f"Failed to initialize JWKS client with URL {jwks_url}: {e}")
             self.enabled = False
             self.jwks_client = None
     
