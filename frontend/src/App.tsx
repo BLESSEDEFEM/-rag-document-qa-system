@@ -3,7 +3,6 @@ import { ClerkProvider, SignInButton, SignedIn, SignedOut, UserButton, useAuth }
 import DocumentUpload from './components/DocumentUpload';
 import DocumentList from './components/DocumentList';
 import QueryAnswer from './components/QueryAnswer';
-import { Header } from '@/components/ui/header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileText, Upload, MessageSquare, LogIn } from 'lucide-react';
 
@@ -63,8 +62,13 @@ function App() {
       <TokenManager />
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
         <div className="container mx-auto px-4 py-6">
-          {/* Header */}
-          <Header />
+          {/* Simple Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-slate-800 mb-2">
+              RAG Document Q&A System
+            </h1>
+            <p className="text-slate-600">Upload, manage, and query your documents with AI</p>
+          </div>
 
           {/* Auth Section */}
           <div className="mb-8 flex justify-center">
