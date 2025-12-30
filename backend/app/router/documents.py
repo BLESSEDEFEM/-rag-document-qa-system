@@ -19,7 +19,7 @@ from app.services.llm_service import llm_service
 from app.services.cache_service import cache_service
 from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
-from app.middleware.auth import get_current_user_optional  # CHANGED
+from app.middleware.auth import get_current_user, get_current_user_optional
 
 # Request models
 class QueryRequest(BaseModel):
@@ -40,7 +40,7 @@ router = APIRouter(
 async def upload_document(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user_optional)  # CHANGED
+    user: dict = Depends(get_current_user)
 ):
     """Upload a document (PDF, DOCX, TXT) for processing."""
 
@@ -225,7 +225,7 @@ async def upload_document(
 async def answer_question(
     request: QueryRequest,
     db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user_optional)  # CHANGED
+    user: dict = Depends(get_current_user)
 ):
     query = request.query
     top_k = request.top_k
@@ -358,7 +358,7 @@ async def answer_question(
 @router.get("/list", response_model=List[Dict[str, Any]])
 async def list_documents(
     db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user_optional)  # CHANGED
+    user: dict = Depends(get_current_user)
 ):
     """List all uploaded documents."""
     logger.info(f"Document list requested by user: {user['sub']}")
@@ -398,7 +398,7 @@ async def list_documents(
 async def delete_document(
     document_id: int,
     db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user_optional)  # CHANGED
+    user: dict = Depends(get_current_user)
 ):
     """Delete a document."""
     document = db.query(Document).filter(
