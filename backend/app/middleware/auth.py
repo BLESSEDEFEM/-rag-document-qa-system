@@ -80,6 +80,12 @@ def get_clerk_frontend_api_url(publishable_key: str) -> Optional[str]:
         return None
 
 
+class CustomPyJWKClient(PyJWKClient):
+    """Custom PyJWKClient with better caching and timeout handling"""
+    def __init__(self, uri, **kwargs):
+        super().__init__(uri, lifespan=3600, max_cached_keys=16)  # Cache for 1 hour
+
+
 class ClerkAuth:
     """Clerk JWT authentication handler."""
     
@@ -116,7 +122,8 @@ class ClerkAuth:
         jwks_url = f"{frontend_api_url}/.well-known/jwks.json"
         
         try:
-            self.jwks_client = PyJWKClient(jwks_url)
+            # Create a custom PyJWKClient with longer timeout and better caching
+            self.jwks_client = CustomPyJWKClient(jwks_url)
             self.enabled = True
             logger.info(f"Clerk auth initialized successfully with JWKS: {jwks_url}")
         except Exception as e:

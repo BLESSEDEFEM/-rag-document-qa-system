@@ -8,6 +8,7 @@ import logging
 import sys
 from datetime import datetime
 from typing import Dict, Any
+import os
 
 # Third-party imports
 from fastapi import FastAPI
@@ -70,16 +71,19 @@ async def root():
 @app.get("/health", response_model=Dict[str, Any])
 async def health_check():
     """
-    Health check endpoint with Redis status.
+    Health check endpoint with Redis and Auth status.
     """
     from app.services.cache_service import cache_service
+    from app.middleware.auth import clerk_auth
     
     logger.info("Health check requested")
     
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
-        "redis": "connected" if cache_service.is_connected() else "disconnected"
+        "redis": "connected" if cache_service.is_connected() else "disconnected",
+        "auth": "enabled" if clerk_auth.enabled else "disabled",
+        "environment": "production" if os.getenv("RAILWAY_ENVIRONMENT") else "development"
     }
 
 # Startup event
@@ -91,6 +95,13 @@ async def startup_event():
     """
     logger.info("RAG Document Q&A API Starting...")
     logger.info("Documentation available at: http://localhost:8000/docs")
+    
+    # Log authentication status
+    from app.middleware.auth import clerk_auth
+    if clerk_auth.enabled:
+        logger.info("Clerk authentication is ENABLED")
+    else:
+        logger.warning("Clerk authentication is DISABLED - check environment variables")
 
 # Shutdown event
 @app.on_event("shutdown")

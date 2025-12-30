@@ -54,9 +54,35 @@ interface AnswerResponse {
   retrieval_stats: RetrievalStats;
 }
 
-// Helper to get auth token from global window object
-const getAuthToken = (): string | null => {
-  return (window as any).clerkToken || null;
+// Declare global Clerk interface
+declare global {
+  interface Window {
+    Clerk?: any;
+    clerkToken?: string;
+  }
+}
+
+// Helper to get auth token from Clerk
+const getAuthToken = async (): Promise<string | null> => {
+  // Try to get fresh token from Clerk
+  if (window.Clerk?.session) {
+    try {
+      const token = await window.Clerk.session.getToken();
+      if (token) {
+        window.clerkToken = token; // Cache it
+        return token;
+      }
+    } catch (error) {
+      console.error('Failed to get Clerk token:', error);
+    }
+  }
+  
+  // Fallback to cached token
+  if (window.clerkToken) {
+    return window.clerkToken;
+  }
+  
+  return null;
 };
 
 // API Functions with Authentication
@@ -64,7 +90,7 @@ export const uploadDocument = async (file: File): Promise<UploadResponse> => {
   const formData = new FormData();
   formData.append('file', file);
 
-  const token = getAuthToken();
+  const token = await getAuthToken();
   const headers: HeadersInit = {};
   
   if (token) {
@@ -86,7 +112,7 @@ export const uploadDocument = async (file: File): Promise<UploadResponse> => {
 };
 
 export const getDocuments = async (): Promise<DocumentMetadata[]> => {
-  const token = getAuthToken();
+  const token = await getAuthToken();
   const headers: HeadersInit = {};
   
   if (token) {
@@ -96,6 +122,7 @@ export const getDocuments = async (): Promise<DocumentMetadata[]> => {
   const response = await fetch(`${API_BASE_URL}/list`, { headers });
 
   if (!response.ok) {
+    console.error('Failed to fetch documents:', response.status);
     throw new Error('Failed to fetch documents');
   }
 
@@ -108,7 +135,7 @@ export const answerQuestion = async (
   min_score: number = 0.3,
   document_id?: number
 ): Promise<AnswerResponse> => {
-  const token = getAuthToken();
+  const token = await getAuthToken();
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
@@ -132,7 +159,7 @@ export const answerQuestion = async (
 };
 
 export const deleteDocument = async (documentId: number): Promise<void> => {
-  const token = getAuthToken();
+  const token = await getAuthToken();
   const headers: HeadersInit = {};
   
   if (token) {
