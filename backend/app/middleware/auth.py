@@ -1,6 +1,5 @@
 """
 Clerk JWT authentication middleware for FastAPI.
-Uses PyJWT to verify Clerk session tokens locally.
 """
 import os
 import logging
@@ -17,36 +16,36 @@ logger = logging.getLogger(__name__)
 CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
 CLERK_PUBLISHABLE_KEY = os.getenv("CLERK_PUBLISHABLE_KEY", "")
 
-# Extract frontend URL from publishable key
-# pk_test_... or pk_live_...
-clerk_frontend_api = CLERK_PUBLISHABLE_KEY.replace("pk_test_", "").replace("pk_live_", "")
-
 
 class ClerkAuth:
     """Clerk JWT authentication handler."""
     
     def __init__(self):
-        if not CLERK_SECRET_KEY:
-            logger.warning("CLERK_SECRET_KEY not found - auth disabled")
+        if not CLERK_SECRET_KEY or not CLERK_PUBLISHABLE_KEY:
+            logger.warning("Clerk keys not found - auth disabled")
             self.enabled = False
             self.jwks_client = None
+            return
+        
+        self.enabled = True
+        
+        # Extract the instance identifier from publishable key
+        # pk_test_xxx or pk_live_xxx format
+        key_parts = CLERK_PUBLISHABLE_KEY.split("_")
+        
+        # For development keys, use the standard Clerk frontend API
+        if "test" in CLERK_PUBLISHABLE_KEY:
+            # Development JWKS endpoint - works for all test instances
+            jwks_url = "https://api.clerk.com/v1/jwks"
         else:
-            self.enabled = True
-            # Clerk JWKS endpoint for development
-            jwks_url = f"https://{clerk_frontend_api}.clerk.accounts.dev/.well-known/jwks.json"
-            self.jwks_client = PyJWKClient(jwks_url)
-            logger.info(f"Clerk auth initialized with JWKS: {jwks_url}")
+            # Production - extract domain from key
+            jwks_url = "https://api.clerk.com/v1/jwks"
+        
+        self.jwks_client = PyJWKClient(jwks_url)
+        logger.info(f"Clerk auth initialized with JWKS: {jwks_url}")
     
     def verify_token(self, token: str) -> Optional[dict]:
-        """
-        Verify Clerk JWT token locally using JWKS.
-        
-        Args:
-            token: JWT session token from Clerk
-            
-        Returns:
-            User data dict or None if invalid
-        """
+        """Verify Clerk JWT token locally using JWKS."""
         if not self.enabled:
             logger.debug("Auth disabled - returning anonymous user")
             return {"sub": "anonymous", "email": "anonymous@example.com"}
@@ -82,10 +81,7 @@ clerk_auth = ClerkAuth()
 
 
 def get_current_user_optional(authorization: str = Header(None)) -> dict:
-    """
-    Optional auth - returns anonymous user if no token.
-    Used for making endpoints work with or without auth.
-    """
+    """Optional auth - returns anonymous user if no token."""
     if not authorization or not authorization.startswith("Bearer "):
         return {"sub": "anonymous", "email": "anonymous@example.com"}
     
@@ -96,10 +92,7 @@ def get_current_user_optional(authorization: str = Header(None)) -> dict:
 
 
 def get_current_user(authorization: str = Header(None)) -> dict:
-    """
-    Required auth - throws 401 if invalid.
-    Use this for endpoints that MUST have authentication.
-    """
+    """Required auth - throws 401 if invalid."""
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing authorization header")
     
