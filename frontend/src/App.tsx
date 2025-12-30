@@ -5,17 +5,27 @@ import DocumentList from './components/DocumentList';
 import QueryAnswer from './components/QueryAnswer';
 
 function App() {
-  const { getToken } = useAuth();
+  const { getToken, isLoaded, isSignedIn } = useAuth();
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+  const [tokenReady, setTokenReady] = useState(false);
 
   // Store Clerk token globally for API calls
   useEffect(() => {
     const setToken = async () => {
+      if (!isLoaded || !isSignedIn) {
+        (window as any).clerkToken = null;
+        setTokenReady(false);
+        return;
+      }
+
       try {
         const token = await getToken();
         (window as any).clerkToken = token;
+        setTokenReady(true);
+        console.log('Token set successfully');
       } catch (error) {
         console.error('Failed to get token:', error);
+        setTokenReady(false);
       }
     };
     
@@ -24,7 +34,7 @@ function App() {
     // Refresh token every 5 minutes
     const interval = setInterval(setToken, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [getToken]);
+  }, [getToken, isLoaded, isSignedIn]);
 
   const handleUploadSuccess = () => {
     setRefreshTrigger(prev => prev + 1);
@@ -84,20 +94,31 @@ function App() {
         </SignedOut>
 
         <SignedIn>
-          {/* Upload Section */}
-          <div className="animate-fade-in">
-            <DocumentUpload onUploadSuccess={handleUploadSuccess} />
-          </div>
+          {!tokenReady ? (
+            <div className="text-center py-20">
+              <div className="inline-block p-6 bg-white rounded-full shadow-lg mb-6">
+                <div className="animate-spin h-12 w-12 border-4 border-primary-600 border-t-transparent rounded-full"></div>
+              </div>
+              <p className="text-slate-600">Loading your workspace...</p>
+            </div>
+          ) : (
+            <>
+              {/* Upload Section */}
+              <div className="animate-fade-in">
+                <DocumentUpload onUploadSuccess={handleUploadSuccess} />
+              </div>
 
-          {/* Documents List */}
-          <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
-            <DocumentList refreshTrigger={refreshTrigger} />
-          </div>
+              {/* Documents List */}
+              <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
+                <DocumentList refreshTrigger={refreshTrigger} />
+              </div>
 
-          {/* Query Section */}
-          <div className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
-            <QueryAnswer />
-          </div>
+              {/* Query Section */}
+              <div className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
+                <QueryAnswer />
+              </div>
+            </>
+          )}
         </SignedIn>
       </main>
 
