@@ -54,13 +54,26 @@ interface AnswerResponse {
   retrieval_stats: RetrievalStats;
 }
 
-// API Functions
+// Helper to get auth token from global window object
+const getAuthToken = (): string | null => {
+  return (window as any).clerkToken || null;
+};
+
+// API Functions with Authentication
 export const uploadDocument = async (file: File): Promise<UploadResponse> => {
   const formData = new FormData();
   formData.append('file', file);
 
+  const token = getAuthToken();
+  const headers: HeadersInit = {};
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_BASE_URL}/upload`, {
     method: 'POST',
+    headers,
     body: formData,
   });
 
@@ -73,7 +86,14 @@ export const uploadDocument = async (file: File): Promise<UploadResponse> => {
 };
 
 export const getDocuments = async (): Promise<DocumentMetadata[]> => {
-  const response = await fetch(`${API_BASE_URL}/list`);
+  const token = getAuthToken();
+  const headers: HeadersInit = {};
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/list`, { headers });
 
   if (!response.ok) {
     throw new Error('Failed to fetch documents');
@@ -85,14 +105,22 @@ export const getDocuments = async (): Promise<DocumentMetadata[]> => {
 export const answerQuestion = async (
   query: string,
   top_k: number = 5,
-  min_score: number = 0.3
+  min_score: number = 0.3,
+  document_id?: number
 ): Promise<AnswerResponse> => {
+  const token = getAuthToken();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_BASE_URL}/answer`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ query, top_k, min_score }),
+    headers,
+    body: JSON.stringify({ query, top_k, min_score, document_id }),
   });
 
   if (!response.ok) {
@@ -104,8 +132,16 @@ export const answerQuestion = async (
 };
 
 export const deleteDocument = async (documentId: number): Promise<void> => {
+  const token = getAuthToken();
+  const headers: HeadersInit = {};
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_BASE_URL}/${documentId}`, {
     method: 'DELETE',
+    headers,
   });
 
   if (!response.ok) {

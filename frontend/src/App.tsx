@@ -1,11 +1,30 @@
-import { useState } from 'react';
-import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
+import { useState, useEffect } from 'react';
+import { SignedIn, SignedOut, SignInButton, UserButton, useAuth } from '@clerk/clerk-react';
 import DocumentUpload from './components/DocumentUpload';
 import DocumentList from './components/DocumentList';
 import QueryAnswer from './components/QueryAnswer';
 
 function App() {
+  const { getToken } = useAuth();
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+
+  // Store Clerk token globally for API calls
+  useEffect(() => {
+    const setToken = async () => {
+      try {
+        const token = await getToken();
+        (window as any).clerkToken = token;
+      } catch (error) {
+        console.error('Failed to get token:', error);
+      }
+    };
+    
+    setToken();
+    
+    // Refresh token every 5 minutes
+    const interval = setInterval(setToken, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [getToken]);
 
   const handleUploadSuccess = () => {
     setRefreshTrigger(prev => prev + 1);

@@ -19,6 +19,7 @@ class Document(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
 
     # File information
+    user_id = Column(String, index=True, nullable=False)  # Clerk user ID
     filename = Column(String(255), nullable=False, index=True)
     original_filename = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=False, unique=True)

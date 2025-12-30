@@ -19,8 +19,8 @@ from app.services.llm_service import llm_service
 from app.services.cache_service import cache_service
 from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
+from app.middleware.auth import get_current_user
 
-# Request models
 # Request models
 class QueryRequest(BaseModel):
     query: str
@@ -42,7 +42,8 @@ router = APIRouter(
 @router.post("/upload", response_model=Dict[str, Any])
 async def upload_document(
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
     """
     Upload a document (PDF, DOCX, TXT) for processing.
@@ -165,6 +166,7 @@ async def upload_document(
         logger.info("Creating database record...")
 
         document = Document(
+            user_id=user["sub"],
             filename=unique_filename,
             original_filename=file.filename or "unknown",
             file_path=file_path,
@@ -370,7 +372,8 @@ async def query_documents(
 @router.post("/answer", response_model=Dict[str, Any])
 async def answer_question(
     request: QueryRequest,
-    _db: Session = Depends(get_db)
+    _db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
     query = request.query
     top_k = request.top_k
@@ -417,8 +420,43 @@ async def answer_question(
 
         logger.info("Searching Pinecone for top %d matches...", top_k)
         
-        # Build filter for Pinecone if document_id specified
-        pinecone_filter = {"document_id": document_id} if document_id else None
+        # Build filter for Pinecone with user isolation
+        if document_id:
+            # Verify user owns this document
+            doc = db.query(Document).filter(
+                Document.id == document_id,
+                Document.user_id == user["sub"]
+            ).first()
+            
+            if not doc:
+                return {
+                    "success": True,
+                    "answer": "Document not found or you don't have access to it.",
+                    "query": query,
+                    "chunks_used": 0,
+                    "sources": []
+                }
+            
+            pinecone_filter = {"document_id": document_id}
+        else:
+            # Get all document IDs belonging to this user
+            user_docs = db.query(Document.id).filter(
+                Document.user_id == user["sub"],
+                Document.is_deleted == False
+            ).all()
+            user_doc_ids = [doc.id for doc in user_docs]
+            
+            if not user_doc_ids:
+                return {
+                    "success": True,
+                    "answer": "You haven't uploaded any documents yet. Please upload documents first.",
+                    "query": query,
+                    "chunks_used": 0,
+                    "sources": []
+                }
+            
+            # Filter to only search user's documents
+            pinecone_filter = {"document_id": {"$in": user_doc_ids}}
         
         pinecone_results = pinecone_service.query_similar(
             query_embedding=query_embedding,
@@ -451,7 +489,7 @@ async def answer_question(
         if len(context_chunks) == 0:
             return {
                 "success": True,
-                "answer": "I couldn't find any relevant information in the documents to answer your question. Please try rephrasing or upload related documents.",
+                "answer": "I couldn't find any relevant information in your documents to answer your question. Please try rephrasing or upload related documents.",
                 "query": query,
                 "chunks_used": 0,
                 "sources": []}
@@ -467,7 +505,7 @@ async def answer_question(
         if not llm_result["success"]:
             raise HTTPException(
                 status_code=500,
-                detail="Error generating answer: {llm_result.get('error')}"
+                detail=f"Error generating answer: {llm_result.get('error')}"
             )
 
         logger.info("Answer generated successfully")
@@ -494,103 +532,13 @@ async def answer_question(
             status_code=500,
             detail=f"Error processing answer request: {str(e)}"
         ) from e
-        
-@router.post("/answer/stream")
-async def answer_question_stream(
-    request: QueryRequest,
-    _db: Session = Depends(get_db)
-):
-    """
-    Stream answer using Server-Sent Events (SSE).
-    """
-    query = request.query
-    top_k = request.top_k
-    min_score = request.min_score
-    document_id = request.document_id
-    
-    logger.info(f"Stream answer request: '{query}' (document_id={document_id})")
-    
-    # Validate query
-    if not query or len(query.strip()) == 0:
-        raise HTTPException(status_code=400, detail="Query cannot be empty")
-    
-    async def generate():
-        try:
-            # RETRIEVAL PHASE (same as before)
-            query_embedding = embedding_service.generate_embedding(query.strip())
-            
-            if not query_embedding:
-                yield f"data: {json.dumps({'error': 'Failed to generate embedding'})}\n\n"
-                return
-            
-            # Build filter if document specified
-            pinecone_filter = {"document_id": document_id} if document_id else None
-            
-            pinecone_results = pinecone_service.query_similar(
-                query_embedding=query_embedding,
-                top_k=top_k,
-                filter_dict=pinecone_filter
-            )
-            
-            # Format chunks
-            context_chunks = []
-            for match in pinecone_results:
-                chunk = {
-                    "chunk_text": match["metadata"].get("chunk_text", ""),
-                    "score": match["score"],
-                    "source": {
-                        "document": match["metadata"].get("document_id"),
-                        "filename": match["metadata"].get("filename", "Unknown"),
-                        "file_type": match["metadata"].get("file_type", "Unknown"),
-                        "chunk_index": match["metadata"].get("chunk_index", 0)
-                    }
-                }
-                context_chunks.append(chunk)
-            
-            context_chunks = [c for c in context_chunks if c["score"] >= min_score]
-            
-            if len(context_chunks) == 0:
-                yield f"data: {json.dumps({'done': True, 'answer': 'No relevant information found'})}\n\n"
-                return
-            
-            # Send sources first
-            sources = [
-                {
-                    "filename": chunk["source"]["filename"],
-                    "chunk_index": chunk["source"]["chunk_index"],
-                    "relevance_score": chunk["score"]
-                }
-                for chunk in context_chunks[:5]
-            ]
-            yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
-            
-            # STREAMING GENERATION
-            async for text_chunk in llm_service.generate_answer_stream(
-                query=query,
-                context_chunks=context_chunks,
-                max_chunks=5
-            ):
-                yield f"data: {json.dumps({'type': 'text', 'content': text_chunk})}\n\n"
-            
-            # Send completion
-            yield f"data: {json.dumps({'type': 'done'})}\n\n"
-            
-        except Exception as e:
-            logger.error(f"Streaming error: {e}")
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
-    
-    return StreamingResponse(
-        generate(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-        }
-    )
 
 
 @router.get("/list", response_model=List[Dict[str, Any]])
-async def list_documents(db: Session = Depends(get_db)):
+async def list_documents(
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
     """
     List all uploaded documents with Redis caching.
     """
@@ -604,7 +552,10 @@ async def list_documents(db: Session = Depends(get_db)):
         return cached
     
     # Cache miss - query database
-    documents = db.query(Document).filter(Document.is_deleted == False).all()
+    documents = db.query(Document).filter(
+        Document.is_deleted == False,
+        Document.user_id == user["sub"]
+    ).all()
     
     result = [
         {
@@ -641,10 +592,14 @@ async def documents_health():
 @router.delete("/{document_id}")
 async def delete_document(
     document_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
 ):
     # Delete from PostgreSQL
-    document = db.query(Document).filter(Document.id == document_id).first()
+    document = db.query(Document).filter(
+        Document.id == document_id,
+        Document.user_id == user["sub"]
+    ).first()
     if not document:
         raise HTTPException(404, "Document not found")
 
