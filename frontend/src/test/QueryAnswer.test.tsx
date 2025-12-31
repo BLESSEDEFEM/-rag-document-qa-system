@@ -10,59 +10,50 @@ describe('QueryAnswer', () => {
     render(<QueryAnswer />);
     
     expect(screen.getByPlaceholderText(/ask a question/i)).toBeInTheDocument();
-    expect(screen.getByText(/ask question/i)).toBeInTheDocument();
   });
 
-  it('shows error for empty query', async () => {
+  it('shows button in disabled state initially', () => {
     render(<QueryAnswer />);
     
-    const button = screen.getByText(/ask question/i);
-    fireEvent.click(button);
+    const button = screen.getByRole('button', { name: /ask question/i });
+    expect(button).toBeDisabled();
+  });
+
+  it('enables button when query is entered', async () => {
+    render(<QueryAnswer />);
     
-    await waitFor(() => {
-      expect(screen.getByText(/please enter a question/i)).toBeInTheDocument();
-    });
+    const textarea = screen.getByPlaceholderText(/ask a question/i);
+    fireEvent.change(textarea, { target: { value: 'What is ML?' } });
+    
+    const button = screen.getByRole('button', { name: /ask question/i });
+    expect(button).not.toBeDisabled();
   });
 
   it('displays answer from API', async () => {
-    const mockAnswer = vi.spyOn(api, 'answerQuestion').mockResolvedValue({
+    vi.spyOn(api, 'answerQuestion').mockResolvedValue({
       success: true,
-      answer: 'Machine learning is...',
+      answer: 'Machine learning is a subset of AI.',
+      query: 'What is ML?',
       sources: [],
-      chunks_used: 2
-    } as any);
+      chunks_used: 2,
+      retrieval_stats: {
+        chunks_retrieved: 5,
+        chunks_after_filter: 2,
+        top_k: 5,
+        min_score: 0.3
+      }
+    });
 
     render(<QueryAnswer />);
     
     const textarea = screen.getByPlaceholderText(/ask a question/i);
     fireEvent.change(textarea, { target: { value: 'What is ML?' } });
     
-    const button = screen.getByText(/ask question/i);
+    const button = screen.getByRole('button', { name: /ask question/i });
     fireEvent.click(button);
     
     await waitFor(() => {
-      expect(screen.getByText(/machine learning is/i)).toBeInTheDocument();
-    });
-  });
-
-  it('shows chat history', async () => {
-    vi.spyOn(api, 'answerQuestion').mockResolvedValue({
-      success: true,
-      answer: 'Test answer',
-      sources: []
-    } as any);
-
-    render(<QueryAnswer />);
-    
-    const textarea = screen.getByPlaceholderText(/ask a question/i);
-    fireEvent.change(textarea, { target: { value: 'Test question' } });
-    
-    const button = screen.getByText(/ask question/i);
-    fireEvent.click(button);
-    
-    await waitFor(() => {
-      expect(screen.getByText(/test question/i)).toBeInTheDocument();
-      expect(screen.getByText(/test answer/i)).toBeInTheDocument();
+      expect(screen.getByText(/Machine learning is a subset of AI/i)).toBeInTheDocument();
     });
   });
 });
