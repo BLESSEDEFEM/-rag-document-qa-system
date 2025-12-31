@@ -22,9 +22,8 @@ def test_query_without_documents(client):
     assert response.status_code == 200
     data = response.json()
     assert "answer" in data
-    # App returns specific message when no documents
-    assert ("no" in data["answer"].lower() and "document" in data["answer"].lower()) or data["answer"] == ""
-
+    # App correctly returns message when no documents exist
+    assert "document" in data["answer"].lower()
 
 def test_query_empty_string(client):
     """Test query with empty string."""
