@@ -5,7 +5,7 @@ import App from '../App';
 // Mock the entire Clerk module
 vi.mock('@clerk/clerk-react', () => ({
   ClerkProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-  SignedIn: ({ children }: { children: React.ReactNode }) => null,
+  SignedIn: () => null,
   SignedOut: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SignInButton: ({ children }: { children: React.ReactNode }) => <button>{children}</button>,
   UserButton: () => <div>User Button</div>,
