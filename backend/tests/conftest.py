@@ -1,39 +1,27 @@
 """
-Pytest configuration and fixtures for testing.
+Test configuration and fixtures.
 """
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from unittest.mock import Mock, patch
+import sys
+import os
 
-from app.main import app
-from app.database import Base, get_db
+# Add parent directory to path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Test database
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Mock Clerk auth BEFORE importing app
+mock_user = {"sub": "test_user_123", "email": "test@example.com"}
 
-@pytest.fixture(scope="function")
-def db_session():
-    """Create test database session."""
-    Base.metadata.create_all(bind=engine)
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-        Base.metadata.drop_all(bind=engine)
+# Patch the auth dependency
+with patch('app.middleware.auth.get_current_user', return_value=mock_user):
+    with patch('app.middleware.auth.get_current_user_optional', return_value=mock_user):
+        from app.main import app
 
-@pytest.fixture(scope="function")
-def client(db_session):
-    """Create test client."""
-    def override_get_db():
-        try:
-            yield db_session
-        finally:
-            db_session.close()
-    
-    app.dependency_overrides[get_db] = override_get_db
-    yield TestClient(app)
-    app.dependency_overrides.clear()
+@pytest.fixture
+def client():
+    """Create test client with mocked auth."""
+    with patch('app.middleware.auth.get_current_user', return_value=mock_user):
+        with patch('app.middleware.auth.get_current_user_optional', return_value=mock_user):
+            with TestClient(app) as test_client:
+                yield test_client
