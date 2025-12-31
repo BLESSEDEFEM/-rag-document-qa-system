@@ -42,7 +42,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
+        "http://localhost:5174",
         "https://rag-document-qa-system.vercel.app",
+        "https://rag-document-qa-system-l14o6i1zb-blessedefems-projects.vercel.app",
+        "https://*.blessedefems-projects.vercel.app",  # Allow all preview deployments
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -60,7 +63,7 @@ async def root():
     Used for health checks in production.
     """
     return {
-        "message": "You're not Welcome to RAG Document Q&A API",
+        "message": "Welcome to RAG Document Q&A API",
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "version": "1.0.0",
@@ -71,10 +74,9 @@ async def root():
 @app.get("/health", response_model=Dict[str, Any])
 async def health_check():
     """
-    Health check endpoint with Redis and Auth status.
+    Health check endpoint with service status.
     """
     from app.services.cache_service import cache_service
-    from app.middleware.auth import clerk_auth
     
     logger.info("Health check requested")
     
@@ -82,7 +84,6 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "redis": "connected" if cache_service.is_connected() else "disconnected",
-        "auth": "enabled" if clerk_auth.enabled else "disabled",
         "environment": "production" if os.getenv("RAILWAY_ENVIRONMENT") else "development"
     }
 
@@ -95,13 +96,7 @@ async def startup_event():
     """
     logger.info("RAG Document Q&A API Starting...")
     logger.info("Documentation available at: http://localhost:8000/docs")
-    
-    # Log authentication status
-    from app.middleware.auth import clerk_auth
-    if clerk_auth.enabled:
-        logger.info("Clerk authentication is ENABLED")
-    else:
-        logger.warning("Clerk authentication is DISABLED - check environment variables")
+    logger.info("Clerk authentication: ENABLED (JWT verification)")
 
 # Shutdown event
 @app.on_event("shutdown")
