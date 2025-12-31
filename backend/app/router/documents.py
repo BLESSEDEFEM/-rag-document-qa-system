@@ -93,6 +93,8 @@ async def upload_document(
     embeddings = None
     chunk_count = None
     status = "failed"
+    truncated = False
+    original_chunk_count = 0
 
     if extraction_result["success"]:
         logger.info(
