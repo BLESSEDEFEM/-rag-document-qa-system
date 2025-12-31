@@ -138,7 +138,7 @@ function QueryAnswer() {
         )}
 
         {/* Document Selector */}
-        {showDocFilter && documents.length > 0 && (
+        {showDocFilter && documents && documents.length > 0 && (
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700">
               Filter by document (optional)
