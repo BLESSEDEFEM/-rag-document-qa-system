@@ -37,15 +37,18 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Configure CORS (Cross-Origin Resource Sharing)
+# CORS Configuration - Specific origins only for security
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "http://localhost:3000",
         "http://localhost:5173",
-        "http://localhost:5174",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        # Production frontend - exact URL only
         "https://rag-document-qa-system.vercel.app",
-        "https://rag-document-qa-system-l14o6i1zb-blessedefems-projects.vercel.app",
-        "https://*.blessedefems-projects.vercel.app",  # Allow all preview deployments
+        # Add specific preview URLs if needed
+        # "https://rag-document-qa-system-git-main-blessedefems-projects.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
