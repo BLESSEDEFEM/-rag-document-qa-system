@@ -1,0 +1,102 @@
+# CodeRabbit Configuration for RAG Document Q&A System
+# This triggers comprehensive review of entire codebase
+
+language: en-US
+tone_instructions: "Be thorough, specific, and educational. Point out security issues, performance problems, and best practices violations."
+
+reviews:
+  profile: "assertive"
+  request_changes_workflow: true
+  high_level_summary: true
+  poem: false
+  review_status: true
+  
+  # Review entire codebase context
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+  
+  # What to review
+  path_filters:
+    - "**/*.py"      # All Python files
+    - "**/*.ts"      # All TypeScript files
+    - "**/*.tsx"     # All React files
+    - "**/*.js"      # All JavaScript files
+    - "**/*.json"    # Config files
+    - "**/*.yaml"    # Config files
+    - "**/*.yml"     # Config files
+    - "**/Dockerfile" # Docker files
+    - "**/*.md"      # Documentation
+  
+  # Ignore these
+  path_ignore:
+    - "**/node_modules/**"
+    - "**/.venv/**"
+    - "**/dist/**"
+    - "**/build/**"
+    - "**/__pycache__/**"
+    - "**/*.pyc"
+
+# What to check for
+checks:
+  # Security
+  - security_vulnerabilities
+  - exposed_secrets
+  - sql_injection
+  - xss_vulnerabilities
+  - authentication_issues
+  - authorization_issues
+  
+  # Code Quality
+  - code_smells
+  - duplicated_code
+  - complex_functions
+  - long_functions
+  - too_many_parameters
+  - unused_code
+  - dead_code
+  
+  # Best Practices
+  - naming_conventions
+  - error_handling
+  - logging_practices
+  - async_await_usage
+  - type_hints
+  - documentation
+  
+  # Performance
+  - performance_issues
+  - memory_leaks
+  - inefficient_algorithms
+  - database_queries
+  
+  # Testing
+  - test_coverage
+  - missing_tests
+  - test_quality
+
+# Custom instructions for this project
+custom_instructions: |
+  This is a production RAG (Retrieval-Augmented Generation) document Q&A system with:
+  - FastAPI backend (Python)
+  - React TypeScript frontend
+  - PostgreSQL database
+  - Pinecone vector database
+  - Clerk authentication
+  - Cohere/Gemini AI integration
+  
+  Please review for:
+  1. Security: API keys, authentication, SQL injection, XSS
+  2. Performance: Database queries, async operations, memory usage
+  3. Best practices: Error handling, logging, type hints
+  4. AI integration: Proper embedding handling, rate limiting
+  5. Production readiness: Edge cases, error states, user feedback
+  
+  Be especially critical of:
+  - Authentication/authorization logic
+  - File upload security
+  - Database operations
+  - AI API calls (rate limiting, error handling)
+  - Frontend state management
