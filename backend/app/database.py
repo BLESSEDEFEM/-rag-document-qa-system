@@ -13,7 +13,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Get database URL from environment variable
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:Mich123nBlessed@localhost/ragdb")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable is required. "
+        "Set it in .env file for local development or Railway/Vercel for production."
+    )
 
 # Create engine
 engine = create_engine(
