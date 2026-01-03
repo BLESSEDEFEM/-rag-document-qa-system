@@ -1,153 +1,49 @@
-# CodeRabbit Configuration for RAG Document Q&A System
 language: en-US
 early_access: false
-enable_free_tier: true
 
 reviews:
   profile: assertive
   request_changes_workflow: true
   high_level_summary: true
-  high_level_summary_placeholder: "@coderabbitai summary"
   poem: false
   review_status: true
-  collapse_walkthrough: false
   
   auto_review:
     enabled: true
-    auto_incremental_review: true
-    ignore_title_keywords:
-      - "WIP"
-      - "DO NOT MERGE"
     drafts: false
-    base_branches:
-      - main
   
-  # Path filters - what to review and what to exclude
   path_filters:
-    # Include these
     - "**/*.py"
     - "**/*.ts"
     - "**/*.tsx"
     - "**/*.js"
     - "**/*.jsx"
-    - "**/*.json"
-    - "**/*.yaml"
-    - "**/*.yml"
-    - "**/Dockerfile"
-    - "**/*.md"
-    # Exclude these (with ! prefix)
     - "!**/node_modules/**"
     - "!**/.venv/**"
-    - "!**/venv/**"
     - "!**/dist/**"
     - "!**/build/**"
     - "!**/__pycache__/**"
-    - "!**/*.pyc"
-    - "!**/.pytest_cache/**"
-    - "!**/package-lock.json"
   
-  # Path-specific instructions (this is where we tell CodeRabbit what to focus on)
   path_instructions:
     - path: "backend/app/**/*.py"
       instructions: |
-        This is a production FastAPI backend for a RAG document Q&A system.
+        Production FastAPI backend for RAG document Q&A system.
         
-        CRITICAL SECURITY REVIEW:
-        - Check for exposed API keys or secrets
-        - Verify authentication/authorization on all endpoints
-        - Check for SQL injection vulnerabilities in database queries
-        - Verify file upload security (file type validation, size limits, path traversal)
-        - Check CORS configuration for security
-        
-        PERFORMANCE REVIEW:
-        - Check async/await usage is correct
-        - Look for N+1 database query problems
-        - Verify proper database connection pooling
-        - Check for memory leaks in file handling
-        
-        BEST PRACTICES:
-        - All functions should have type hints
-        - Error handling should be comprehensive
-        - Logging should be appropriate (not logging sensitive data)
-        - Database sessions should be properly closed
-        
-        AI INTEGRATION:
-        - Check rate limiting for Cohere/Gemini API calls
-        - Verify error handling for API failures
-        - Check for proper embedding vector handling
-    
-    - path: "backend/app/middleware/**/*.py"
-      instructions: |
-        Critical authentication and security middleware.
-        
-        - Verify JWT token validation is secure
-        - Check for timing attack vulnerabilities
-        - Ensure all endpoints require authentication unless explicitly public
-        - Verify proper error responses (don't leak sensitive info)
-    
-    - path: "backend/app/services/**/*.py"
-      instructions: |
-        Service layer - business logic and external integrations.
-        
-        - Check error handling for all external API calls
-        - Verify retry logic and fallback mechanisms
-        - Check for proper resource cleanup (files, connections)
-        - Verify rate limiting implementation
-    
-    - path: "backend/tests/**/*.py"
-      instructions: |
-        Test suite quality review.
-        
-        - Are tests comprehensive?
-        - Do tests cover edge cases?
-        - Are mocks used appropriately?
-        - Is test data realistic?
+        Focus on:
+        - Security: Check for exposed secrets, SQL injection, file upload vulnerabilities
+        - Authentication: Verify JWT validation, endpoint protection
+        - Error handling: Ensure proper try/catch and user-friendly errors
+        - Performance: Check async/await usage, database queries
+        - AI Integration: Verify Cohere/Gemini API error handling and rate limiting
     
     - path: "frontend/src/**/*.{ts,tsx}"
       instructions: |
-        React TypeScript frontend for RAG Q&A interface.
+        React TypeScript frontend.
         
-        SECURITY:
-        - Check for XSS vulnerabilities (proper HTML escaping)
-        - Verify API tokens are not exposed in client code
-        - Check authentication state management
-        
-        PERFORMANCE:
-        - Look for unnecessary re-renders
-        - Check for memory leaks (event listeners, intervals)
-        - Verify proper React hooks usage
-        
-        BEST PRACTICES:
-        - Components should have proper TypeScript types
-        - Error boundaries should catch errors
-        - Loading states should be handled
-        - User feedback for all actions
-    
-    - path: "frontend/src/components/**/*.{ts,tsx}"
-      instructions: |
-        Reusable React components.
-        
-        - Should be properly typed with TypeScript
-        - Should handle loading and error states
-        - Should be accessible (ARIA labels)
-        - Should be performant (memoization where needed)
-    
-    - path: "**/*.json"
-      instructions: |
-        Configuration files.
-        
-        - No secrets or API keys should be committed
-        - Versions should be up to date
-        - Security vulnerabilities in dependencies
-  
-  # Tools to enable
-  tools:
-    ruff:
-      enabled: true
-    biome:
-      enabled: true
+        Focus on:
+        - Security: Check for XSS vulnerabilities, token exposure
+        - Performance: Look for unnecessary re-renders, memory leaks
+        - Error handling: Verify proper error boundaries and user feedback
+        - TypeScript: Ensure proper type safety
 
-chat:
-  auto_reply: true
-
-tone_instructions: "Be thorough, specific, and educational. Point out all security issues, performance problems, and best practices violations. Provide code examples in suggestions."
+tone_instructions: "Be thorough and point out security issues, performance problems, and best practices violations. Provide specific code examples."
