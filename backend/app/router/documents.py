@@ -409,39 +409,61 @@ async def answer_question(
         ) from e
 
 
-@router.get("/list", response_model=List[Dict[str, Any]])
+@router.get("/list", response_model=Dict[str, Any])
 async def list_documents(
+    skip: int = 0,
+    limit: int = 100,
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
-    """List all uploaded documents."""
-    logger.info(f"Document list requested by user: {user['sub']}")
+    """List uploaded documents with pagination."""
     
-    cache_key = f"documents:list:{user['sub']}"
+    # Validate pagination params
+    if skip < 0:
+        raise HTTPException(status_code=400, detail="skip must be >= 0")
+    
+    if limit < 1 or limit > 1000:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 1000")
+    
+    logger.info(f"Document list requested by user: {user['sub']} (skip={skip}, limit={limit})")
+    
+    cache_key = f"documents:list:{user['sub']}:{skip}:{limit}"
     cached = cache_service.get(cache_key)
     if cached:
         logger.info("Returning cached document list")
         return cached
     
+    # Get total count
+    total = db.query(Document).filter(
+        Document.is_deleted == False,
+        Document.user_id == user["sub"]
+    ).count()
+    
+    # Get paginated documents
     documents = db.query(Document).filter(
         Document.is_deleted == False,
         Document.user_id == user["sub"]
-    ).all()
+    ).order_by(Document.upload_date.desc()).offset(skip).limit(limit).all()
     
-    result = [
-        {
-            "id": doc.id,
-            "filename": doc.original_filename,
-            "unique_filename": doc.filename,
-            "file_type": doc.file_type,
-            "file_size": doc.file_size,
-            "status": doc.status,
-            "page_count": doc.page_count,
-            "upload_date": doc.upload_date.isoformat(),
-            "character_count": len(doc.extracted_text) if doc.extracted_text else 0
-        }
-        for doc in documents
-    ]
+    result = {
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "documents": [
+            {
+                "id": doc.id,
+                "filename": doc.original_filename,
+                "unique_filename": doc.filename,
+                "file_type": doc.file_type,
+                "file_size": doc.file_size,
+                "status": doc.status,
+                "page_count": doc.page_count,
+                "upload_date": doc.upload_date.isoformat(),
+                "character_count": len(doc.extracted_text) if doc.extracted_text else 0
+            }
+            for doc in documents
+        ]
+    }
     
     cache_service.set(cache_key, result, ttl=300)
     
