@@ -287,6 +287,13 @@ async def answer_question(
     if len(query) > 1000:
         raise HTTPException(status_code=400,
                             detail="Query too long (max 1000 characters)")
+        
+    # NEW: Validate document_id if provided
+    if document_id is not None and not isinstance(document_id, int):
+        raise HTTPException(status_code=400, detail="Invalid document_id format")
+    
+    if document_id is not None and document_id <= 0:
+        raise HTTPException(status_code=400, detail="Invalid document_id value")
 
     try:
         logger.info("Generating query embedding...")
