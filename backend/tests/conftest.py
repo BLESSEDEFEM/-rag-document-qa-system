@@ -52,9 +52,15 @@ def setup_test_database():
     Base.metadata.create_all(bind=test_engine)
     yield
     Base.metadata.drop_all(bind=test_engine)
-    # Clean up test database file
-    if os.path.exists("./test.db"):
-        os.remove("./test.db")
+    # Clean up test database file - try with retry for Windows
+    import time
+    for _ in range(3):
+        try:
+            if os.path.exists("./test.db"):
+                os.remove("./test.db")
+            break
+        except PermissionError:
+            time.sleep(0.1)  # Wait 100ms and retry
 
 # Create test client
 client = TestClient(app)
