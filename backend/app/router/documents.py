@@ -20,6 +20,7 @@ from app.services.cache_service import cache_service
 from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
 from app.middleware.auth import get_current_user, get_current_user_optional
+from app.services.virus_scanner import scan_file
 
 # Request models
 class QueryRequest(BaseModel):
@@ -74,6 +75,19 @@ async def upload_document(
         logger.info("Saving file to disk...")
         file_path, unique_filename = await file_storage.save_uploaded_file(file)
         logger.info("File saved: %s", file_path)
+        # Virus scan
+        logger.info("Scanning file for viruses...")
+        scan_result = await scan_file(file_path)
+        
+        if not scan_result["is_safe"]:
+            logger.error(f"Malicious file detected: {scan_result}")
+            await file_storage.delete_file(file_path)
+            raise HTTPException(
+                status_code=400,
+                detail="File failed security scan. Malicious content detected."
+            )
+
+        logger.info(f"Virus scan result: {scan_result['scan_result']}")
     except Exception as e:
         logger.error("Error saving file: %s", e)
         raise HTTPException(
