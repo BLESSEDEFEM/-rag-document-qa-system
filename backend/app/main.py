@@ -61,11 +61,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Get allowed hosts from environment
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,*.railway.app,rag-document-qa-system-production.up.railway.app").split(",")
+# Get allowed hosts from environment (add testserver for tests)
+ALLOWED_HOSTS = os.getenv(
+    "ALLOWED_HOSTS", 
+    "localhost,127.0.0.1,testserver,*.railway.app,rag-document-qa-system-production.up.railway.app"
+).split(",")
 
-# Trust host headers
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
+# Trust host headers (only in production, skip in tests)
+if os.getenv("TESTING") != "true":
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
 
 # Rate limiting - protect against abuse
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
