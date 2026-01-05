@@ -9,8 +9,9 @@ def test_list_documents_empty(client):
     
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, list)
-    assert len(data) == 0
+    assert "documents" in data
+    assert data["total"] == 0
+    assert len(data["documents"]) == 0
 
 def test_delete_nonexistent_document(client):
     """Test deleting document that doesn't exist."""

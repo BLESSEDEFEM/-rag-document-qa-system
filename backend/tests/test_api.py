@@ -29,9 +29,9 @@ def test_document_list():
     
     assert response.status_code == 200
     data = response.json()
-    
-    # Should return a list (even if empty)
-    assert isinstance(data, list)
+    assert "documents" in data
+    assert "total" in data
+    assert isinstance(data["documents"], list)
 
 
 def test_upload_invalid_file_type():

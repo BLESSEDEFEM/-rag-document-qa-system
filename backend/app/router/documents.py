@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 from typing import List, Dict, Any
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 
 # Import database dependencies
@@ -20,7 +20,8 @@ from app.services.cache_service import cache_service
 from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
 from app.middleware.auth import get_current_user, get_current_user_optional
-
+from app.services.virus_scanner import scan_file
+import bleach
 # Request models
 class QueryRequest(BaseModel):
     query: str
@@ -36,8 +37,117 @@ router = APIRouter(
 )
 
 
+async def process_document_background(
+    document_id: int,
+    file_path: str,
+    file_extension: str,
+    get_session_callable=None
+):
+    """Process document in background: extract text, chunk, embed."""
+    from app.database import SessionLocal
+    
+    # Use provided session factory or default
+    if get_session_callable:
+        db = get_session_callable()
+    else:
+        db = SessionLocal()
+    
+    try:
+        # Get document
+        document = db.query(Document).filter(Document.id == document_id).first()
+        if not document:
+            logger.error(f"Document {document_id} not found for background processing")
+            return
+        
+        logger.info(f"Background processing document {document_id}")
+        
+        # Extract text
+        extraction_result = await text_extraction.extract_text(file_path, file_extension)
+        
+        if extraction_result["success"]:
+            extracted_text = extraction_result["text"]
+            page_count = extraction_result["page_count"]
+            
+            try:
+                # Chunk text
+                chunks = chunk_text(extracted_text, chunk_size=1000, overlap=100)
+                chunks = [chunk.replace('\x00', '') for chunk in chunks] if chunks else None
+                
+                if chunks:
+                    chunk_count = len(chunks)
+                    
+                    # Truncate if too many chunks
+                    MAX_CHUNKS = 200
+                    if chunk_count > MAX_CHUNKS:
+                        logger.warning(f"Document has {chunk_count} chunks, truncating to {MAX_CHUNKS}")
+                        chunks = chunks[:MAX_CHUNKS]
+                        chunk_count = MAX_CHUNKS
+                    
+                    # Generate embeddings
+                    logger.info(f"Generating embeddings for {chunk_count} chunks...")
+                    embeddings = embedding_service.generate_embeddings(chunks)
+                    
+                    if embeddings and all(embeddings):
+                        # Store in Pinecone
+                        logger.info("Storing chunks in Pinecone...")
+                        result = pinecone_service.upsert_embeddings(
+                            document_id=document_id,
+                            chunks=chunks,
+                            embeddings=embeddings,
+                            metadata={
+                                "filename": document.original_filename,
+                                "file_type": document.file_type
+                            }
+                        )
+                        
+                        if result["success"]:
+                            logger.info(f"Pinecone storage successful: {result['upserted_count']} vectors")
+                            
+                            # Update document status
+                            document.extracted_text = extracted_text.replace('\x00', '')
+                            document.page_count = page_count
+                            document.chunks = json.dumps(chunks)
+                            document.chunk_count = chunk_count
+                            document.embedding_model = "text-embedding-004"
+                            document.embedding_dimension = 768
+                            document.embedding_date = datetime.utcnow()
+                            document.status = "ready"
+                            document.processed_date = datetime.utcnow()
+                        else:
+                            logger.error(f"Pinecone storage failed: {result.get('error')}")
+                            document.status = "failed"
+                    else:
+                        logger.error("Failed to generate embeddings")
+                        document.status = "failed"
+                else:
+                    document.status = "failed"
+                    
+            except Exception as e:
+                logger.exception("Error during chunking/embedding")
+                document.status = "failed"
+        else:
+            logger.warning(f"Text extraction failed: {extraction_result['error']}")
+            document.status = "failed"
+        
+        db.commit()
+        logger.info(f"Background processing complete for document {document_id}: {document.status}")
+        
+    except Exception as e:
+        logger.exception(f"Background processing error for document {document_id}")
+        try:
+            document = db.query(Document).filter(Document.id == document_id).first()
+            if document:
+                document.status = "failed"
+                db.commit()
+        except Exception:
+            pass
+    finally:
+        if get_session_callable is None:
+            db.close()
+
 @router.post("/upload", response_model=Dict[str, Any])
 async def upload_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
@@ -74,6 +184,20 @@ async def upload_document(
         logger.info("Saving file to disk...")
         file_path, unique_filename = await file_storage.save_uploaded_file(file)
         logger.info("File saved: %s", file_path)
+        
+        # Virus scan
+        logger.info("Scanning file for viruses...")
+        scan_result = await scan_file(file_path)
+        
+        if not scan_result["is_safe"]:
+            logger.error(f"Malicious file detected: {scan_result}")
+            await file_storage.delete_file(file_path)
+            raise HTTPException(
+                status_code=400,
+                detail="File failed security scan. Malicious content detected."
+            )
+
+        logger.info(f"Virus scan result: {scan_result['scan_result']}")
     except Exception as e:
         logger.error("Error saving file: %s", e)
         raise HTTPException(
@@ -81,63 +205,10 @@ async def upload_document(
             detail=f"Error saving file: {str(e)}"
         ) from e
 
-    logger.info("Extracting text from document...")
-    extraction_result = await text_extraction.extract_text(
-        file_path,
-        file_extension
-    )
-
-    extracted_text = None
-    page_count = None
-    chunks = None
-    embeddings = None
-    chunk_count = None
-    status = "failed"
-    truncated = False
-    original_chunk_count = 0
-
-    if extraction_result["success"]:
-        logger.info(
-            "Text extraction successful: %d characters", len(
-                extraction_result['text']))
-        extracted_text = extraction_result["text"]
-        page_count = extraction_result["page_count"]
-        status = "extracted"
-
-        try:
-            logger.info("Chunking text...")
-            chunks = chunk_text(extracted_text, chunk_size=1000, overlap=100)
-            chunks = [chunk.replace('\x00', '') for chunk in chunks] if chunks else None
-            chunk_count = len(chunks)
-            logger.info("Created %d chunks", chunk_count)
-
-            MAX_CHUNKS = 200
-            truncated = False
-            original_chunk_count = chunk_count
-
-            if chunk_count > MAX_CHUNKS:
-                logger.warning(f"Document has {chunk_count} chunks, truncating to {MAX_CHUNKS}")
-                chunks = chunks[:MAX_CHUNKS]
-                chunk_count = MAX_CHUNKS
-                truncated = True
-
-            logger.info("Embeddings will be auto-generated by Pinecone")
-            embeddings = None
-
-            status = "ready"
-
-        except Exception as e:
-            logger.error("Error during chunking/embedding: %s", e)
-            status = "extracted"
-
-    else:
-        logger.warning(
-            "Text extraction failed: %s",
-            extraction_result['error'])
-
     try:
         logger.info("Creating database record...")
 
+        # Create document record with "processing" status
         document = Document(
             user_id=user["sub"],
             filename=unique_filename,
@@ -145,15 +216,15 @@ async def upload_document(
             file_path=file_path,
             file_size=file_size,
             file_type=file_extension.replace(".", ""),
-            extracted_text=extracted_text.replace('\x00', '') if extracted_text else None,
-            page_count=page_count,
-            status=status,
-            chunks=json.dumps(chunks) if chunks else None,
+            extracted_text=None,
+            page_count=None,
+            status="processing",
+            chunks=None,
             embeddings=None,
-            chunk_count=chunk_count,
-            embedding_model="cohere-embed-v3" if chunks else None,
-            embedding_dimension=1024 if chunks else None,
-            embedding_date=datetime.utcnow() if chunks else None
+            chunk_count=None,
+            embedding_model=None,
+            embedding_dimension=None,
+            embedding_date=None
         )
 
         db.add(document)
@@ -162,33 +233,14 @@ async def upload_document(
 
         logger.info("Database record created: Document ID %d", document.id)
 
-        if chunks and document.id:
-            try:
-                logger.info("Generating embeddings for %d chunks...", len(chunks))
-                embeddings = embedding_service.generate_embeddings(chunks)
-                
-                if embeddings and all(embeddings):
-                    logger.info("Storing %d chunks in Pinecone...", len(chunks))
-                    
-                    result = pinecone_service.upsert_embeddings(
-                        document_id=document.id,
-                        chunks=chunks,
-                        embeddings=embeddings,
-                        metadata={
-                            "filename": document.original_filename,
-                            "file_type": document.file_type
-                        }
-                    )
-                    
-                    if result["success"]:
-                        logger.info("Pinecone storage successful: %d vectors", result["upserted_count"])
-                    else:
-                        logger.error("Pinecone storage failed: %s", result.get("error"))
-                else:
-                    logger.error("Failed to generate embeddings")
-                    
-            except Exception as e:
-                logger.error("Error storing in Pinecone: %s", e)
+        # Queue background processing (don't pass db session)
+        background_tasks.add_task(
+            process_document_background,
+            document.id,
+            file_path,
+            file_extension,
+            None  # Don't pass request-scoped session
+        )
 
     except Exception as e:
         logger.error("Error creating database record: %s", e)
@@ -196,30 +248,20 @@ async def upload_document(
         await file_storage.delete_file(file_path)
         raise HTTPException(
             status_code=500,
-            detail=f"Error saving to database: {str(e)}"
-        ) from e
+            detail="An error occurred while saving your document. Please try again."
+        )
         
     cache_service.delete("documents:list")
 
     return {
-        "message": "Document uploaded and processed successfully" if not truncated else 
-                   f"⚠️ Document partially processed: First {MAX_CHUNKS} chunks only (file had {original_chunk_count} chunks)",
+        "message": "Document uploaded successfully. Processing in background...",
         "document_id": document.id,
         "filename": document.original_filename,
         "unique_filename": document.filename,
         "size_bytes": document.file_size,
         "file_type": document.file_type,
-        "status": document.status,
-        "page_count": document.page_count,
-        "character_count": len(extracted_text) if extracted_text else 0,
-        "chunk_count": document.chunk_count,
-        "truncated": truncated if 'truncated' in locals() else False,
-        "original_chunk_count": original_chunk_count if 'original_chunk_count' in locals() else chunk_count,
-        "chunks_processed": chunk_count,
-        "embedding_dimension": document.embedding_dimension,
-        "is_embedded": document.chunk_count is not None and document.chunk_count > 0,
-        "upload_date": document.upload_date.isoformat(),
-        "extracted_text_preview": extracted_text[:200] + "..." if extracted_text and len(extracted_text) > 200 else extracted_text
+        "status": "processing",
+        "upload_date": document.upload_date.isoformat()
     }
 
 
@@ -234,14 +276,28 @@ async def answer_question(
     min_score = request.min_score
     document_id = request.document_id
 
+    # Sanitize query input
+    query = bleach.clean(query.strip(), tags=[], strip=True)
+
     logger.info(f"Answer request: '{query}' (document_id={document_id})")
 
-    if not query or len(query.strip()) == 0:
+    # Input validation
+    if not query or len(query) == 0:
         raise HTTPException(status_code=400, detail="Query cannot be empty")
+
+    if len(query) < 3:
+        raise HTTPException(status_code=400, detail="Query too short (minimum 3 characters)")
 
     if len(query) > 1000:
         raise HTTPException(status_code=400,
                             detail="Query too long (max 1000 characters)")
+        
+    # NEW: Validate document_id if provided
+    if document_id is not None and not isinstance(document_id, int):
+        raise HTTPException(status_code=400, detail="Invalid document_id format")
+    
+    if document_id is not None and document_id <= 0:
+        raise HTTPException(status_code=400, detail="Invalid document_id value")
 
     try:
         logger.info("Generating query embedding...")
@@ -353,43 +409,104 @@ async def answer_question(
         logger.error("Error processing answer request: %s", e)
         raise HTTPException(
             status_code=500,
-            detail=f"Error processing answer request: {str(e)}"
-        ) from e
-
-
-@router.get("/list", response_model=List[Dict[str, Any]])
-async def list_documents(
+            detail="An error occurred while processing your question. Please try again."
+        )
+        
+@router.get("/services/health")
+async def services_health(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
-    """List all uploaded documents."""
-    logger.info(f"Document list requested by user: {user['sub']}")
+    """Check health of all services."""
+    checks = {
+        "database": False,
+        "pinecone": False,
+        "redis": False,
+        "embedding_service": False
+    }
     
-    cache_key = f"documents:list:{user['sub']}"
+    # Database
+    try:
+        db.execute("SELECT 1")
+        checks["database"] = True
+    except:
+        pass
+    
+    # Pinecone
+    try:
+        pinecone_service.index.describe_index_stats()
+        checks["pinecone"] = True
+    except:
+        pass
+    
+    # Redis
+    checks["redis"] = cache_service.enabled
+    
+    # Embedding service
+    try:
+        test_embedding = embedding_service.generate_embedding("test")
+        checks["embedding_service"] = bool(test_embedding)
+    except:
+        pass
+    
+    return {"services": checks, "all_healthy": all(checks.values())}
+
+
+@router.get("/list", response_model=Dict[str, Any])
+async def list_documents(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    """List uploaded documents with pagination."""
+    
+    # Validate pagination params
+    if skip < 0:
+        raise HTTPException(status_code=400, detail="skip must be >= 0")
+    
+    if limit < 1 or limit > 1000:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 1000")
+    
+    logger.info(f"Document list requested by user: {user['sub']} (skip={skip}, limit={limit})")
+    
+    cache_key = f"documents:list:{user['sub']}:{skip}:{limit}"
     cached = cache_service.get(cache_key)
     if cached:
         logger.info("Returning cached document list")
         return cached
     
+    # Get total count
+    total = db.query(Document).filter(
+        Document.is_deleted == False,
+        Document.user_id == user["sub"]
+    ).count()
+    
+    # Get paginated documents
     documents = db.query(Document).filter(
         Document.is_deleted == False,
         Document.user_id == user["sub"]
-    ).all()
+    ).order_by(Document.upload_date.desc()).offset(skip).limit(limit).all()
     
-    result = [
-        {
-            "id": doc.id,
-            "filename": doc.original_filename,
-            "unique_filename": doc.filename,
-            "file_type": doc.file_type,
-            "file_size": doc.file_size,
-            "status": doc.status,
-            "page_count": doc.page_count,
-            "upload_date": doc.upload_date.isoformat(),
-            "character_count": len(doc.extracted_text) if doc.extracted_text else 0
-        }
-        for doc in documents
-    ]
+    result = {
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+        "documents": [
+            {
+                "id": doc.id,
+                "filename": doc.original_filename,
+                "unique_filename": doc.filename,
+                "file_type": doc.file_type,
+                "file_size": doc.file_size,
+                "status": doc.status,
+                "page_count": doc.page_count,
+                "upload_date": doc.upload_date.isoformat(),
+                "character_count": len(doc.extracted_text) if doc.extracted_text else 0
+            }
+            for doc in documents
+        ]
+    }
     
     cache_service.set(cache_key, result, ttl=300)
     

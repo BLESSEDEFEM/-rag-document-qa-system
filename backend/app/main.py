@@ -13,9 +13,15 @@ import os
 # Third-party imports
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 # Local application imports
 from app.router import documents
+
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from app.middleware.logging_middleware import log_requests
 
 
 # Configure logging (essential for production)
@@ -33,24 +39,42 @@ app = FastAPI(
     title="RAG Document Q&A API",
     description="Production-grade RAG system for intelligent document analysis",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    docs_url="/api/docs",
+    redoc_url="/api/redoc"
 )
 
-# Configure CORS (Cross-Origin Resource Sharing)
+# Add logging middleware
+app.middleware("http")(log_requests)
+
+# CORS Configuration - Specific origins only for security
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "http://localhost:3000",
         "http://localhost:5173",
-        "http://localhost:5174",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
         "https://rag-document-qa-system.vercel.app",
-        "https://rag-document-qa-system-l14o6i1zb-blessedefems-projects.vercel.app",
-        "https://*.blessedefems-projects.vercel.app",  # Allow all preview deployments
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Get allowed hosts from environment (add testserver for tests)
+ALLOWED_HOSTS = os.getenv(
+    "ALLOWED_HOSTS", 
+    "localhost,127.0.0.1,testserver,*.railway.app,rag-document-qa-system-production.up.railway.app"
+).split(",")
+
+# Trust host headers (only in production, skip in tests)
+if os.getenv("TESTING") != "true":
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
+
+# Rate limiting - protect against abuse
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Register routers
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])

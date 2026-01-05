@@ -1,85 +1,112 @@
+"""
+Embedding service with Gemini primary, Cohere fallback.
+"""
 import os
 import logging
+from typing import List
 import cohere
-from pinecone import Pinecone
+import google.generativeai as genai
 
 logger = logging.getLogger(__name__)
 
 class EmbeddingService:
     def __init__(self):
-        try:
-            cohere_key = os.getenv("COHERE_API_KEY")
-            if cohere_key:
-                self.cohere_client = cohere.ClientV2(cohere_key)
-                logger.info("Embedding service initialized with Cohere")
-            else:
-                logger.warning("COHERE_API_KEY not found")
-                self.cohere_client = None
-            
-            api_key = os.getenv("PINECONE_API_KEY")
-            index_name = os.getenv("PINECONE_INDEX_NAME")
-            
-            if api_key and index_name:
-                self.pc = Pinecone(api_key=api_key)
-                self.index = self.pc.Index(index_name)
-        except Exception as e:
-            logger.error(f"Init error: {e}")
-            self.cohere_client = None
-    
-    def generate_embedding(self, text):
-        try:
-            response = self.cohere_client.embed(
-                texts=[text],
-                model='embed-english-v3.0',
-                input_type='search_document',
-                embedding_types=['float']
-            )
-            return response.embeddings.float[0]
-        except Exception as e:
-            logger.error(f"Embedding error: {e}")
-            return None
-    
-    def generate_embeddings(self, texts):
-        """Generate embeddings in batches with retry and rate limiting"""
-        import time
+        # Gemini (Primary - 15,000 free/month)
+        self.gemini_api_key = os.getenv("GEMINI_API_KEY")
+        if self.gemini_api_key:
+            genai.configure(api_key=self.gemini_api_key)
+            logger.info("Gemini embedding service initialized")
         
-        try:
-            all_embeddings = []
-            batch_size = 96
-            
-            for i in range(0, len(texts), batch_size):
-                batch = texts[i:i + batch_size]
-                
-                # Retry up to 3 times with exponential backoff
-                for attempt in range(3):
-                    try:
-                        response = self.cohere_client.embed(
-                            texts=batch,
-                            model='embed-english-v3.0',
-                            input_type='search_document',
-                            embedding_types=['float']
-                        )
-                        all_embeddings.extend(response.embeddings.float)
-                        logger.info(f"Processed batch {i//batch_size + 1}/{(len(texts)-1)//batch_size + 1}")
-                        break  # Success, exit retry loop
-                    except Exception as e:
-                        if "429" in str(e) or "rate limit" in str(e).lower():
-                            wait_time = (2 ** attempt) * 10  # 10s, 20s, 40s
-                            logger.warning(f"Rate limit hit, waiting {wait_time}s (attempt {attempt+1}/3)")
-                            time.sleep(wait_time)
-                        else:
-                            logger.error(f"Embedding error: {e}")
-                            return None
-                
-                # Delay between batches to avoid rate limits
-                if i + batch_size < len(texts):
-                    time.sleep(7)
-            
-            return all_embeddings
-        except Exception as e:
-            logger.error(f"Embedding error: {e}")
+        # Cohere (Fallback - 100 free/month)
+        self.cohere_api_key = os.getenv("COHERE_API_KEY")
+        if self.cohere_api_key:
+            self.cohere_client = cohere.ClientV2(api_key=self.cohere_api_key)
+            logger.info("Cohere embedding service initialized")
+    
+    def generate_embedding(self, text: str) -> List[float]:
+        """Generate embedding - Try Gemini first, fallback to Cohere."""
+        if not text or len(text.strip()) == 0:
+            logger.error("Empty text provided for embedding")
             return None
+        
+        text = text.strip()
+        
+        # Try Gemini first
+        if self.gemini_api_key:
+            try:
+                result = genai.embed_content(
+                    model="models/text-embedding-004",
+                    content=text,
+                    task_type="retrieval_query"
+                )
+                logger.info("Gemini embedding generated successfully")
+                return result['embedding']
+            except Exception as e:
+                logger.warning(f"Gemini embedding failed: {e}, trying Cohere fallback...")
+        
+        # Fallback to Cohere
+        if self.cohere_api_key:
+            try:
+                response = self.cohere_client.embed(
+                    texts=[text],
+                    model="embed-english-v3.0",
+                    input_type="search_query",
+                    embedding_types=["float"]
+                )
+                embedding = response.embeddings.float_[0]
+                logger.info("Cohere embedding generated successfully (fallback)")
+                return embedding
+            except Exception as e:
+                logger.error(f"Cohere embedding also failed: {e}")
+                return None
+        
+        logger.error("No embedding service available")
+        return None
+    
+    def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
+        """Generate embeddings for multiple texts - Gemini first, Cohere fallback."""
+        if not texts:
+            logger.error("Empty texts list provided")
+            return None
+        
+        texts = [t.strip() for t in texts if t and len(t.strip()) > 0]
+        
+        if not texts:
+            logger.error("All texts were empty after stripping")
+            return None
+        
+        # Try Gemini first
+        if self.gemini_api_key:
+            try:
+                result = genai.embed_content(
+                    model="models/text-embedding-004",
+                    content=texts,
+                    task_type="retrieval_document"
+                )
+                logger.info(f"Gemini batch embeddings: {len(texts)} texts")
+                return result['embedding']
+            except Exception as e:
+                logger.warning(f"Gemini failed: {e}, trying Cohere...")
+        
+        # Fallback to Cohere
+        if self.cohere_api_key:
+            try:
+                response = self.cohere_client.embed(
+                    texts=texts,
+                    model="embed-english-v3.0",
+                    input_type="search_document",
+                    embedding_types=["float"]
+                )
+                logger.info(f"Cohere batch embeddings: {len(texts)} texts")
+                return response.embeddings.float_
+            except Exception as e:
+                logger.error(f"Both embedding services failed: {e}")
+                return None
+        
+        logger.error("No embedding service available")
+        return None
 
+# Global instance
 embedding_service = EmbeddingService()
 
 
