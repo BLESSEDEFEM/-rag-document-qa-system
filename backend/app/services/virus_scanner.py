@@ -4,14 +4,16 @@ Virus scanning service using VirusTotal API.
 import os
 import hashlib
 import vt
-from typing import Dict
+from typing import Dict, Any
 import logging
+import aiofiles
 
 logger = logging.getLogger(__name__)
 
 VIRUSTOTAL_API_KEY = os.getenv("VIRUSTOTAL_API_KEY")
+VIRUS_SCAN_REQUIRED = os.getenv("VIRUS_SCAN_REQUIRED", "false").lower() == "true"
 
-async def scan_file(file_path: str) -> Dict[str, any]:
+async def scan_file(file_path: str) -> Dict[str, Any]:
     """
     Scan a file for viruses using VirusTotal.
     
@@ -22,17 +24,28 @@ async def scan_file(file_path: str) -> Dict[str, any]:
         Dict with keys: is_safe (bool), scan_result (str), details (dict)
     """
     if not VIRUSTOTAL_API_KEY:
-        logger.warning("VirusTotal API key not configured - skipping virus scan")
-        return {
-            "is_safe": True,
-            "scan_result": "skipped",
-            "details": {"reason": "No API key configured"}
-        }
+        if VIRUS_SCAN_REQUIRED:
+            logger.error("VirusTotal API key not configured - blocking upload")
+            return {
+                "is_safe": False,
+                "scan_result": "error",
+                "details": {"reason": "Virus scanning required but unavailable"}
+            }
+        else:
+            logger.warning("VirusTotal API key not configured - allowing upload (scan not required)")
+            return {
+                "is_safe": True,
+                "scan_result": "skipped",
+                "details": {"reason": "No API key configured, scanning not required"}
+            }
     
     try:
-        # Calculate file hash
-        with open(file_path, 'rb') as f:
-            file_hash = hashlib.sha256(f.read()).hexdigest()
+        # Calculate file hash asynchronously with incremental reading
+        sha256_hash = hashlib.sha256()
+        async with aiofiles.open(file_path, 'rb') as f:
+            while chunk := await f.read(65536):  # 64KB chunks
+                sha256_hash.update(chunk)
+        file_hash = sha256_hash.hexdigest()
         
         # Check with VirusTotal
         client = vt.Client(VIRUSTOTAL_API_KEY)
@@ -61,17 +74,12 @@ async def scan_file(file_path: str) -> Dict[str, any]:
             
         except vt.error.APIError as e:
             if e.code == "NotFoundError":
-                # File not in VirusTotal database - upload for scanning
-                with open(file_path, 'rb') as f:
-                    analysis = await client.scan_file_async(f)
-                
-                # Note: Full analysis takes time, so we allow upload
-                # and mark for later verification
-                logger.info(f"File uploaded to VirusTotal for analysis: {file_hash}")
+                # File not in database - fail closed for security
+                logger.warning(f"File not in VirusTotal database: {file_hash} - rejecting for safety")
                 return {
-                    "is_safe": True,  # Assume safe for new files
-                    "scan_result": "pending",
-                    "details": {"analysis_id": analysis.id}
+                    "is_safe": False,
+                    "scan_result": "unknown",
+                    "details": {"reason": "File not in VirusTotal database - rejected for security"}
                 }
             else:
                 raise
@@ -80,10 +88,10 @@ async def scan_file(file_path: str) -> Dict[str, any]:
             await client.close_async()
             
     except Exception as e:
-        logger.error(f"Virus scan error: {e}")
-        # Fail-safe: allow upload but log error
+        logger.exception(f"Virus scan error: {e}")
+        # Fail-closed: reject on error
         return {
-            "is_safe": True,
+            "is_safe": False,
             "scan_result": "error",
             "details": {"error": str(e)}
         }

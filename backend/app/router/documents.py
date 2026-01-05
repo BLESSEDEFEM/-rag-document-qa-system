@@ -1,10 +1,9 @@
 import json
 import logging
-import bleach
 from datetime import datetime
 from typing import List, Dict, Any
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request, BackgroundTasks
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 
 # Import database dependencies
@@ -22,7 +21,7 @@ from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
 from app.middleware.auth import get_current_user, get_current_user_optional
 from app.services.virus_scanner import scan_file
-
+import bleach
 # Request models
 class QueryRequest(BaseModel):
     query: str
@@ -42,18 +41,17 @@ async def process_document_background(
     document_id: int,
     file_path: str,
     file_extension: str,
-    db_session=None
+    get_session_callable=None
 ):
     """Process document in background: extract text, chunk, embed."""
     from app.database import SessionLocal
     
-    # Use provided session (for tests) or create new one (for production)
-    if db_session:
-        db = db_session
-        should_close = False
+    # Use provided session factory or default
+    if get_session_callable:
+        db = get_session_callable()
     else:
         db = SessionLocal()
-        should_close = True
+    
     try:
         # Get document
         document = db.query(Document).filter(Document.id == document_id).first()
@@ -110,8 +108,8 @@ async def process_document_background(
                             document.page_count = page_count
                             document.chunks = json.dumps(chunks)
                             document.chunk_count = chunk_count
-                            document.embedding_model = "cohere-embed-v3"
-                            document.embedding_dimension = 1024
+                            document.embedding_model = "text-embedding-004"
+                            document.embedding_dimension = 768
                             document.embedding_date = datetime.utcnow()
                             document.status = "ready"
                             document.processed_date = datetime.utcnow()
@@ -125,7 +123,7 @@ async def process_document_background(
                     document.status = "failed"
                     
             except Exception as e:
-                logger.error(f"Error during chunking/embedding: {e}")
+                logger.exception("Error during chunking/embedding")
                 document.status = "failed"
         else:
             logger.warning(f"Text extraction failed: {extraction_result['error']}")
@@ -135,22 +133,20 @@ async def process_document_background(
         logger.info(f"Background processing complete for document {document_id}: {document.status}")
         
     except Exception as e:
-        logger.error(f"Background processing error for document {document_id}: {e}")
+        logger.exception(f"Background processing error for document {document_id}")
         try:
             document = db.query(Document).filter(Document.id == document_id).first()
             if document:
                 document.status = "failed"
                 db.commit()
-        except:
+        except Exception:
             pass
     finally:
-        if should_close:
+        if get_session_callable is None:
             db.close()
-
 
 @router.post("/upload", response_model=Dict[str, Any])
 async def upload_document(
-    request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -237,13 +233,13 @@ async def upload_document(
 
         logger.info("Database record created: Document ID %d", document.id)
 
-        # Queue background processing
+        # Queue background processing (don't pass db session)
         background_tasks.add_task(
             process_document_background,
             document.id,
             file_path,
             file_extension,
-            db
+            None  # Don't pass request-scoped session
         )
 
     except Exception as e:

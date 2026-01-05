@@ -13,6 +13,7 @@ import os
 # Third-party imports
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 # Local application imports
 from app.router import documents
@@ -42,6 +43,7 @@ app = FastAPI(
     redoc_url="/api/redoc"
 )
 
+# Add logging middleware
 app.middleware("http")(log_requests)
 
 # CORS Configuration - Specific origins only for security
@@ -54,13 +56,14 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         # Production frontend - exact URL only
         "https://rag-document-qa-system.vercel.app",
-        # Add specific preview URLs if needed
-        # "https://rag-document-qa-system-git-main-blessedefems-projects.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Trust proxy headers (for Railway/production behind reverse proxy)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
 # Rate limiting - protect against abuse
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])

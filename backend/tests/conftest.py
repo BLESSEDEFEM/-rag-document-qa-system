@@ -62,9 +62,6 @@ def setup_test_database():
         except PermissionError:
             time.sleep(0.1)  # Wait 100ms and retry
 
-# Create test client
-client = TestClient(app)
-
 @pytest.fixture
 def client():
     """Provide test client with mocked auth and test database."""
