@@ -14,6 +14,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 
 # Local application imports
 from app.router import documents
@@ -63,9 +64,10 @@ app.add_middleware(
 )
 
 # Trust proxy headers (for Railway/production behind reverse proxy)
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
-# Rate limiting - protect against abuse
+# Rate limiting - protect against abuse (now sees real client IP)
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
