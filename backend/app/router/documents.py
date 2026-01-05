@@ -1,5 +1,6 @@
 import json
 import logging
+import bleach
 from datetime import datetime
 from typing import List, Dict, Any
 
@@ -251,8 +252,8 @@ async def upload_document(
         await file_storage.delete_file(file_path)
         raise HTTPException(
             status_code=500,
-            detail=f"Error saving to database: {str(e)}"
-        ) from e
+            detail="An error occurred while saving your document. Please try again."
+        )
         
     cache_service.delete("documents:list")
 
@@ -279,10 +280,17 @@ async def answer_question(
     min_score = request.min_score
     document_id = request.document_id
 
+    # Sanitize query input
+    query = bleach.clean(query.strip(), tags=[], strip=True)
+
     logger.info(f"Answer request: '{query}' (document_id={document_id})")
 
-    if not query or len(query.strip()) == 0:
+    # Input validation
+    if not query or len(query) == 0:
         raise HTTPException(status_code=400, detail="Query cannot be empty")
+
+    if len(query) < 3:
+        raise HTTPException(status_code=400, detail="Query too short (minimum 3 characters)")
 
     if len(query) > 1000:
         raise HTTPException(status_code=400,
@@ -405,8 +413,8 @@ async def answer_question(
         logger.error("Error processing answer request: %s", e)
         raise HTTPException(
             status_code=500,
-            detail=f"Error processing answer request: {str(e)}"
-        ) from e
+            detail="An error occurred while processing your question. Please try again."
+        )
 
 
 @router.get("/list", response_model=Dict[str, Any])

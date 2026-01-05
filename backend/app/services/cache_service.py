@@ -30,9 +30,15 @@ class CacheService:
     def _connect(self):
         """Establish Redis connection."""
         try:
+            redis_password = os.getenv("REDIS_PASSWORD")
+            redis_use_ssl = os.getenv("REDIS_USE_SSL", "false").lower() == "true"
+            
             self.client = redis.Redis(
                 host=self.redis_host,
                 port=self.redis_port,
+                password=redis_password if redis_password else None,
+                ssl=redis_use_ssl,
+                ssl_cert_reqs="required" if redis_use_ssl else None,
                 db=self.redis_db,
                 decode_responses=True,
                 socket_connect_timeout=5
