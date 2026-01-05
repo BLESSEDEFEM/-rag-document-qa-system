@@ -128,16 +128,8 @@ export const getDocuments = async (): Promise<DocumentMetadata[]> => {
 
   const data = await response.json();
   
-  console.log('🔍 RAW API RESPONSE:', data);
-  console.log('🔍 TYPE:', typeof data);
-  console.log('🔍 IS ARRAY:', Array.isArray(data));
-  
-  // Handle both old array format and new paginated format
-  if (Array.isArray(data)) {
-    return data;  // Old format
-  }
-  
-  return data.documents || [];  // New format
+  // Handle both formats
+  return Array.isArray(data) ? data : (data.documents || []);
 };
 
 export const answerQuestion = async (
