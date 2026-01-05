@@ -20,6 +20,7 @@ from app.router import documents
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from app.middleware.logging_middleware import log_requests
 
 
 # Configure logging (essential for production)
@@ -37,9 +38,11 @@ app = FastAPI(
     title="RAG Document Q&A API",
     description="Production-grade RAG system for intelligent document analysis",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    docs_url="/api/docs",
+    redoc_url="/api/redoc"
 )
+
+app.middleware("http")(log_requests)
 
 # CORS Configuration - Specific origins only for security
 app.add_middleware(

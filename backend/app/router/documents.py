@@ -415,6 +415,45 @@ async def answer_question(
             status_code=500,
             detail="An error occurred while processing your question. Please try again."
         )
+        
+@router.get("/services/health")
+async def services_health(
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    """Check health of all services."""
+    checks = {
+        "database": False,
+        "pinecone": False,
+        "redis": False,
+        "embedding_service": False
+    }
+    
+    # Database
+    try:
+        db.execute("SELECT 1")
+        checks["database"] = True
+    except:
+        pass
+    
+    # Pinecone
+    try:
+        pinecone_service.index.describe_index_stats()
+        checks["pinecone"] = True
+    except:
+        pass
+    
+    # Redis
+    checks["redis"] = cache_service.enabled
+    
+    # Embedding service
+    try:
+        test_embedding = embedding_service.generate_embedding("test")
+        checks["embedding_service"] = bool(test_embedding)
+    except:
+        pass
+    
+    return {"services": checks, "all_healthy": all(checks.values())}
 
 
 @router.get("/list", response_model=Dict[str, Any])

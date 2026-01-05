@@ -489,3 +489,23 @@ Built with ❤️ as part of the journey to FAANG
 - ALX Software Engineering Program
 - FastAPI and React communities
 - CodeRabbit for automated code reviews
+
+## 🚀 Deployment
+
+### Railway Deployment
+
+1. **Create Railway account:** https://railway.app
+2. **Create new project** from GitHub repo
+3. **Add PostgreSQL database** (Railway plugin)
+4. **Set environment variables:**
+   - All variables from `.env.example`
+   - Railway auto-sets `DATABASE_URL`
+5. **Deploy:** Automatic on push to main
+
+### Environment Variables Required:
+- `DATABASE_URL` - PostgreSQL connection
+- `PINECONE_API_KEY` - Vector database
+- `GEMINI_API_KEY` - AI model
+- `COHERE_API_KEY` - Embeddings
+- `VIRUSTOTAL_API_KEY` - Virus scanning
+- `CLERK_JWKS_URL` - Authentication
