@@ -14,7 +14,6 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
-from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 
 # Local application imports
 from app.router import documents
@@ -55,7 +54,6 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
-        # Production frontend - exact URL only
         "https://rag-document-qa-system.vercel.app",
     ],
     allow_credentials=True,
@@ -63,11 +61,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Trust proxy headers (for Railway/production behind reverse proxy)
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
+# Get allowed hosts from environment
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,*.railway.app,rag-document-qa-system-production.up.railway.app").split(",")
 
-# Rate limiting - protect against abuse (now sees real client IP)
+# Trust host headers
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
+
+# Rate limiting - protect against abuse
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
