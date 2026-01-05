@@ -23,7 +23,7 @@ A production-ready **Retrieval-Augmented Generation (RAG)** system that enables 
 ---
 
 ## 🏗️ System Architecture
-```
+```text
 ┌─────────────┐
 │   User      │ (Browser)
 └──────┬──────┘
@@ -296,7 +296,7 @@ npm run test
 
 1. **Import from GitHub:** [vercel.com/new](https://vercel.com/new)
 2. **Set environment variables:**
-   - `VITE_API_URL=https://your-railway-backend.up.railway.app`
+   - `VITE_API_URL=https://rag-document-qa-system-production.up.railway.app`
    - `VITE_CLERK_PUBLISHABLE_KEY=your_clerk_key`
 3. **Deploy** (automatic on push to `main`)
 
@@ -390,9 +390,8 @@ Junior AI Engineer | ALX Software Engineering Graduate
 📍 Lagos, Nigeria
 
 - 🔗 GitHub: [@BLESSEDEFEM](https://github.com/BLESSEDEFEM)
-- 💼 LinkedIn: [Blessing Nejo - https://www.linkedin.com/in/blessing-nejo-
-195673134]
-- 📧 Email: [nejoblessing72@gmail.com]
+- 💼 LinkedIn: [Blessing Nejo](https://www.linkedin.com/in/blessing-nejo-195673134)
+- 📧 Email: [nejoblessing72@gmail.com](mailto:nejoblessing72@gmail.com)
 
 **Built with ❤️ as part of the journey**
 
