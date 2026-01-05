@@ -1,217 +1,205 @@
 # 🤖 RAG Document Q&A System
 
-A production-ready Retrieval-Augmented Generation (RAG) system that allows users to upload documents and ask questions, receiving accurate AI-generated answers with source citations.
+A production-ready **Retrieval-Augmented Generation (RAG)** system that enables users to upload documents (PDF, DOCX, TXT) and ask questions, receiving accurate AI-generated answers with source citations.
 
-![RAG System Demo](https://via.placeholder.com/800x400?text=Add+Screenshot+Here)
+[![Live Demo](https://img.shields.io/badge/demo-live-success)](https://rag-document-qa-system.vercel.app)
+[![Backend API](https://img.shields.io/badge/API-Railway-purple)](https://rag-document-qa-system-production.up.railway.app)
+[![Tests](https://img.shields.io/badge/tests-18%20passed-brightgreen)](https://github.com/BLESSEDEFEM/rag-document-qa-system)
 
-## 🌟 Features
+---
 
-- 📄 **Document Upload** - Support for PDF, DOCX, and TXT files (up to 10MB)
-- 🔍 **Semantic Search** - Uses Cohere embeddings for intelligent document retrieval
-- 💬 **AI-Powered Q&A** - Google Gemini 2.0 Flash generates contextual answers
-- 📚 **Source Citations** - Every answer includes document sources and relevance scores
-- 💾 **Database Storage** - PostgreSQL stores document metadata
-- 🔢 **Vector Search** - Pinecone handles embeddings and similarity search
-- 🚀 **Production Deployment** - Deployed on Railway (backend) and Vercel (frontend)
-- 🔄 **Chat History** - Track conversation flow within session
-- 📱 **Mobile Responsive** - Works seamlessly on all devices
+## 🌟 Key Features
 
-## 🏗️ Architecture
+- 📄 **Multi-Format Support** - Upload PDF, DOCX, and TXT files (up to 10MB)
+- 🔍 **Semantic Search** - Dual embedding models (Gemini + Cohere fallback)
+- 💬 **AI-Powered Answers** - Google Gemini 2.0 Flash generates contextual responses
+- 📚 **Source Citations** - Every answer includes document sources with relevance scores
+- 🔐 **Secure Authentication** - Clerk-based JWT authentication with user isolation
+- 🦠 **Virus Scanning** - VirusTotal integration for uploaded files
+- ⚡ **Background Processing** - Large documents processed asynchronously
+- 🚀 **Production Deployment** - Railway (backend) + Vercel (frontend)
+- 📱 **Mobile Responsive** - Optimized for all screen sizes
+
+---
+
+## 🏗️ System Architecture
 ```
 ┌─────────────┐
-│   User      │
+│   User      │ (Browser)
 └──────┬──────┘
-       │
+       │ HTTPS
        ▼
 ┌──────────────────────┐
-│  React + TypeScript  │ (Vercel)
-│  Tailwind CSS        │
+│  React + TypeScript  │ ← Vercel
+│  Clerk Auth          │
 └────────┬─────────────┘
-         │ HTTPS
+         │ REST API + JWT
          ▼
 ┌──────────────────────┐
-│  FastAPI Backend     │ (Railway)
-└────┬─────────────┬───┘
-     │             │
-     ▼             ▼
-┌──────────┐ ┌────────────┐
-│Pinecone  │ │ PostgreSQL │
-│(1024-dim)│ │  (Railway) │
-└────┬─────┘ └────────────┘
+│  FastAPI Backend     │ ← Railway
+│  + Background Tasks  │
+└────┬──────┬──────┬───┘
+     │      │      │
+     ▼      ▼      ▼
+┌─────────┐┌──────────┐┌──────────┐
+│Pinecone ││PostgreSQL││VirusTotal│
+│ Vectors ││  (Docs)  ││ (Scan)   │
+└─────────┘└──────────┘└──────────┘
      │
      ▼
-┌──────────────┐
-│ Cohere API   │ (Embeddings)
-└──────────────┘
-     │
-     ▼
-┌──────────────┐
-│ Gemini 2.0   │ (Answer Generation)
-└──────────────┘
+┌──────────────────────┐
+│ Gemini (primary)     │
+│ Cohere (fallback)    │
+└──────────────────────┘
 ```
+
+---
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **React** 18.3 + **TypeScript** 5.5
-- **Vite** for build tooling
-- **Tailwind CSS** for styling
-- **Vercel** for deployment
+- **Framework:** React 18.3 + TypeScript 5.5
+- **Build Tool:** Vite 5.x
+- **UI:** Tailwind CSS + shadcn/ui
+- **Auth:** Clerk React
+- **State:** React Query
+- **Deployment:** Vercel
 
 ### Backend
-- **FastAPI** (Python 3.11)
-- **SQLAlchemy** + **PostgreSQL** (database)
-- **Pinecone** (vector database, 1024 dimensions)
-- **Cohere** embed-english-v3.0 (embeddings)
-- **Google Gemini 2.0 Flash** (LLM)
-- **Railway** for deployment
+- **Framework:** FastAPI 0.104+
+- **Language:** Python 3.11
+- **Database:** PostgreSQL (SQLAlchemy ORM)
+- **Vector DB:** Pinecone (768-dim for Gemini, 1024-dim for Cohere)
+- **Embeddings:** Google Gemini text-embedding-004 (primary), Cohere embed-v3 (fallback)
+- **LLM:** Google Gemini 2.0 Flash
+- **Auth:** Clerk JWT verification
+- **Security:** VirusTotal API, rate limiting
+- **Deployment:** Railway
 
 ### Document Processing
-- **PyPDF2** (PDF extraction)
-- **python-docx** (DOCX extraction)
-- **RecursiveCharacterTextSplitter** (chunking: 1000 chars, 100 overlap)
+- **PDF:** PyPDF2
+- **DOCX:** python-docx
+- **Chunking:** RecursiveCharacterTextSplitter (1000 chars, 100 overlap)
+- **Max chunks:** 200 per document (quota protection)
+
+---
 
 ## 🚀 Live Demo
 
-- **Frontend**: https://rag-document-qa-system.vercel.app/
-- **API**: https://rag-document-qa-system-production.up.railway.app
+- **Frontend:** [https://rag-document-qa-system.vercel.app](https://rag-document-qa-system.vercel.app)
+- **API Docs:** [https://rag-document-qa-system-production.up.railway.app/api/docs](https://rag-document-qa-system-production.up.railway.app/api/docs)
 
-**⚠️ Note**: This is a demo project. Documents are currently visible to all users (authentication not implemented).
+**Test Account:** Sign up with any email (Clerk handles authentication)
+
+---
 
 ## 📋 Prerequisites
 
-- Python 3.11+
-- Node.js 18+
-- Cohere API key (free trial)
-- Google Gemini API key (free tier)
-- Pinecone account (free tier)
-- Railway account (for backend deployment)
-- Vercel account (for frontend deployment)
+- **Python** 3.11+
+- **Node.js** 18+
+- **PostgreSQL** 14+ (or Railway database)
+- **API Keys:**
+  - [Google Gemini API](https://ai.google.dev) (free: 15,000 requests/month)
+  - [Cohere API](https://dashboard.cohere.com) (free: 100 requests/month)
+  - [Pinecone](https://www.pinecone.io) (free: 1 index)
+  - [VirusTotal](https://www.virustotal.com) (free: 4 requests/minute)
+  - [Clerk](https://clerk.com) (free: 10,000 MAUs)
 
-## 🔧 Local Setup
+---
 
-### Backend Setup
+## 🔧 Local Development Setup
 
-1. **Clone the repository**
+### 1. Clone Repository
 ```bash
-git clone https://github.com/BLESSEDEFEM/rag-document-qa-system.git
+git clone https://github.com/Blessing92/rag-document-qa-system.git
 cd rag-document-qa-system
 ```
 
-2. **Create virtual environment**
+### 2. Backend Setup
 ```bash
 cd backend
+
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-3. **Install dependencies**
-```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-4. **Environment variables**
+# Create .env file (copy from .env.example)
+cp .env.example .env
+# Edit .env and add your API keys
 
-Create `.env` file in `backend/` directory:
-```env
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/rag_db
+# Run database migrations (if using local PostgreSQL)
+# psql -U postgres -c "CREATE DATABASE rag_db;"
 
-# Vector Database
-PINECONE_API_KEY=your_pinecone_api_key
-PINECONE_INDEX_NAME=rag-documents
-
-# AI Services
-COHERE_API_KEY=your_cohere_trial_key
-GEMINI_API_KEY=your_gemini_api_key
-
-# Optional: Redis (if using caching)
-REDIS_URL=redis://localhost:6379
-```
-
-5. **Setup database**
-```bash
-# Create PostgreSQL database
-createdb rag_db
-
-# Run migrations (manual table creation)
-psql rag_db < schema.sql
-```
-
-6. **Create Pinecone index**
-- Go to https://app.pinecone.io
-- Create new index:
-  - Name: `rag-documents`
-  - Dimensions: `1024`
-  - Metric: `cosine`
-  - Type: `Serverless`
-
-7. **Run backend**
-```bash
+# Start server
 uvicorn app.main:app --reload --port 8000
 ```
 
-Backend will be available at: `http://localhost:8000`
+**Backend will run at:** `http://localhost:8000`  
+**API Docs:** `http://localhost:8000/api/docs`
 
-API docs: `http://localhost:8000/docs`
-
-### Frontend Setup
-
-1. **Navigate to frontend**
+### 3. Frontend Setup
 ```bash
 cd ../frontend
-```
 
-2. **Install dependencies**
-```bash
+# Install dependencies
 npm install
-```
 
-3. **Environment variables**
+# Create .env file
+echo "VITE_API_URL=http://localhost:8000" > .env
+echo "VITE_CLERK_PUBLISHABLE_KEY=your_clerk_key" >> .env
 
-Create `.env` file in `frontend/` directory:
-```env
-VITE_API_URL=http://localhost:8000/api/documents
-```
-
-4. **Run frontend**
-```bash
+# Start development server
 npm run dev
 ```
 
-Frontend will be available at: `http://localhost:5173`
+**Frontend will run at:** `http://localhost:5173`
 
-## 📡 API Endpoints
+### 4. Setup Pinecone Index
+
+1. Go to [Pinecone Console](https://app.pinecone.io)
+2. Create new index:
+   - **Name:** `rag-documents`
+   - **Dimensions:** `768` (for Gemini) or `1024` (for Cohere)
+   - **Metric:** `cosine`
+   - **Cloud:** `AWS` (free tier)
+
+---
+
+## 📡 API Reference
 
 ### Upload Document
 ```http
 POST /api/documents/upload
+Authorization: Bearer <clerk_jwt_token>
 Content-Type: multipart/form-data
 
-file: <PDF/DOCX/TXT file>
+file: <binary>
 ```
 
 **Response:**
 ```json
 {
-  "message": "Document uploaded and processed successfully",
-  "document_id": 1,
+  "message": "Document uploaded successfully. Processing in background...",
+  "document_id": 123,
   "filename": "example.pdf",
-  "chunk_count": 45,
-  "truncated": false,
-  "status": "ready"
+  "status": "processing"
 }
 ```
 
 ### Ask Question
 ```http
 POST /api/documents/answer
+Authorization: Bearer <clerk_jwt_token>
 Content-Type: application/json
 
 {
   "query": "What is machine learning?",
   "top_k": 5,
-  "min_score": 0.3
+  "min_score": 0.3,
+  "document_id": 123  // optional
 }
 ```
 
@@ -219,7 +207,7 @@ Content-Type: application/json
 ```json
 {
   "success": true,
-  "answer": "Machine learning is...",
+  "answer": "Machine learning is a subset of artificial intelligence...",
   "sources": [
     {
       "filename": "ml_guide.pdf",
@@ -231,281 +219,202 @@ Content-Type: application/json
 }
 ```
 
-### List Documents
+### List Documents (Paginated)
 ```http
-GET /api/documents/list
+GET /api/documents/list?skip=0&limit=100
+Authorization: Bearer <clerk_jwt_token>
 ```
 
 ### Delete Document
 ```http
 DELETE /api/documents/{document_id}
+Authorization: Bearer <clerk_jwt_token>
 ```
+
+---
 
 ## 🔒 Security Features
 
-- File type validation (whitelist: PDF, DOCX, TXT)
-- File size limits (10 MB max)
-- UUID-based filename sanitization
-- CORS configuration for production domains
-- SQL injection prevention (SQLAlchemy ORM)
-- Input validation with Pydantic models
+- ✅ **JWT Authentication** - Clerk-based authentication with user isolation
+- ✅ **Virus Scanning** - VirusTotal integration (fail-closed mode)
+- ✅ **Rate Limiting** - 200 requests/minute per IP
+- ✅ **Input Validation** - File type, size, and content sanitization
+- ✅ **SQL Injection Prevention** - SQLAlchemy ORM with parameterized queries
+- ✅ **CORS Protection** - Whitelist-based origin validation
+- ✅ **Background Processing** - Prevents request timeout attacks
+- ✅ **User Data Isolation** - Users can only access their own documents
 
-## ⚙️ Configuration
-
-### Chunk Size Limit
-Documents are limited to **200 chunks** (max ~100KB text) to protect API quotas. Larger documents are automatically truncated.
-
-To adjust:
-```python
-# backend/app/router/documents.py
-MAX_CHUNKS = 200  # Modify this value
-```
-
-### Chunking Strategy
-```python
-# backend/app/services/chunking_service.py
-chunk_size = 1000      # Characters per chunk
-overlap = 100          # Character overlap between chunks
-```
-
-### Embedding Batch Size
-```python
-# backend/app/services/embedding_service.py
-batch_size = 96        # Cohere trial limit
-```
+---
 
 ## 🧪 Testing
 
-### Backend Tests
+### Run Backend Tests
 ```bash
 cd backend
-pytest tests/
+pytest tests/ -v --cov=app
 ```
 
-### Frontend Tests
+**Test Coverage:** 18 tests, 63% coverage
+
+### Run Frontend Tests
 ```bash
 cd frontend
 npm run test
 ```
 
 ### Manual Testing Checklist
-- [ ] Upload PDF/DOCX/TXT files
+- [ ] Upload PDF, DOCX, TXT files
 - [ ] Ask questions about uploaded documents
-- [ ] Verify source citations
-- [ ] Test large file truncation warning
+- [ ] Verify source citations and scores
+- [ ] Test authentication (login/logout)
 - [ ] Check mobile responsiveness
-- [ ] Test error handling (invalid file types, network errors)
-
-## 🚀 Deployment
-
-### Backend (Railway)
-
-1. **Create new project** on Railway
-2. **Add PostgreSQL** plugin
-3. **Set environment variables** (Cohere, Gemini, Pinecone keys)
-4. **Connect GitHub repo** - Railway auto-deploys on push
-5. **Database setup**: Connect to Railway Postgres via psql and create tables
-
-### Frontend (Vercel)
-
-1. **Import project** from GitHub
-2. **Set environment variable**:
-   - `VITE_API_URL=https://your-railway-backend.up.railway.app/api/documents`
-3. **Deploy** - Vercel auto-deploys on push
-
-## 📊 Performance
-
-| Metric | Value |
-|--------|-------|
-| Max File Size | 10 MB |
-| Chunk Size | 1000 chars |
-| Max Chunks/Doc | 200 (quota protection) |
-| Embedding Dimension | 1024 |
-| Query Response Time | 2-4 seconds |
-| Cohere Monthly Limit | 10,000 requests |
-| Gemini Daily Limit | 1,500 requests |
-
-## 🐛 Known Issues
-
-- No user authentication (all documents are public)
-- Scanned PDFs return 0 characters (needs OCR)
-- Large documents (1000+ chunks) take ~60s to process
-- No conversation persistence across sessions
-- Chat history clears on page refresh
-
-## 🗺️ Roadmap
-
-- [ ] Add user authentication (Clerk.com)
-- [ ] Implement conversation memory
-- [ ] Add streaming responses
-- [ ] Support Excel/PowerPoint files
-- [ ] OCR for scanned PDFs
-- [ ] Export conversation to PDF
-- [ ] Semantic caching for common queries
-- [ ] Advanced search within documents
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) file for details
-
-## 👤 Author
-
-**Blessing Efem**
-- GitHub: [@BLESSEDEFEM](https://github.com/BLESSEDEFEM)
-- LinkedIn: [Your LinkedIn]
-- Location: Lagos, Nigeria
-
-## 🙏 Acknowledgments
-
-- [Cohere](https://cohere.com) for embeddings API
-- [Google](https://ai.google.dev) for Gemini API
-- [Pinecone](https://www.pinecone.io) for vector database
-- ALX Software Engineering Program, 
-
-## 📞 Support
-
-For issues or questions:
-- Open an [issue](https://github.com/BLESSEDEFEM/rag-document-qa-system/issues)
-- Contact via [LinkedIn]
-
----
-
-**Built with ❤️ in Lagos, Nigeria**
-
-
-## 🏗️ Architecture & Tech Stack
-
-### Backend (FastAPI + Python)
-- **Framework:** FastAPI 0.104+
-- **Database:** PostgreSQL (Railway)
-- **Vector DB:** Pinecone (document embeddings)
-- **AI Models:** Cohere Embed v3, Google Gemini
-- **Authentication:** Clerk JWT
-- **Deployment:** Railway (auto-deploy from main)
-
-### Frontend (React + TypeScript)
-- **Framework:** React 18 + TypeScript
-- **Build Tool:** Vite
-- **UI Library:** Tailwind CSS + shadcn/ui
-- **State Management:** React Query
-- **Authentication:** Clerk React
-- **Deployment:** Vercel (auto-deploy from main)
-
-### CI/CD Pipeline
-- **Testing:** Pytest (18 tests, 63% coverage)
-- **Type Checking:** mypy (backend), TypeScript (frontend)
-- **Code Quality:** CodeRabbit AI reviews
-- **Deployment:** Automatic on merge to main
-
----
-
-## 🔒 Security Features
-
-- ✅ JWT-based authentication (Clerk)
-- ✅ User-scoped data isolation
-- ✅ File upload validation (type, size)
-- ✅ SQL injection prevention (SQLAlchemy ORM)
-- ✅ CORS configuration
-- ✅ Environment variable management
-- ✅ Rate limiting on AI API calls
-
----
-
-## 📊 Code Quality Standards
-
-This project maintains high code quality through:
-
-- **Automated Testing:** 18 comprehensive tests covering upload, query, and document management
-- **Type Safety:** Python type hints + TypeScript strict mode
-- **Code Coverage:** 63% backend coverage, continuously improving
-- **AI Code Review:** CodeRabbit analyzes every PR for security, performance, and best practices
-- **CI/CD Checks:** All tests must pass before deployment
-- **Error Handling:** Comprehensive error handling with user-friendly messages
+- [ ] Test error handling (invalid files, network errors)
+- [ ] Verify background processing status
 
 ---
 
 ## 🚀 Production Deployment
 
 ### Backend (Railway)
-- **URL:** [Your Railway URL]
-- **Auto-deploy:** Triggered on push to main
-- **Health Check:** `/health` endpoint
-- **Environment:** Production-ready with proper logging
+
+1. **Create Railway project:** [railway.app](https://railway.app)
+2. **Add PostgreSQL plugin**
+3. **Connect GitHub repository**
+4. **Set environment variables** (from `.env.example`)
+5. **Deploy** (automatic on push to `main`)
+
+**Environment Variables:**
+- `DATABASE_URL` (auto-set by Railway PostgreSQL)
+- `PINECONE_API_KEY`
+- `GEMINI_API_KEY`
+- `COHERE_API_KEY`
+- `VIRUSTOTAL_API_KEY`
+- `CLERK_JWKS_URL`
+- `VIRUS_SCAN_REQUIRED=false` (optional)
 
 ### Frontend (Vercel)
-- **URL:** [Your Vercel URL]
-- **Auto-deploy:** Triggered on push to main
-- **Performance:** Optimized build with code splitting
-- **CDN:** Global edge network
+
+1. **Import from GitHub:** [vercel.com/new](https://vercel.com/new)
+2. **Set environment variables:**
+   - `VITE_API_URL=https://your-railway-backend.up.railway.app`
+   - `VITE_CLERK_PUBLISHABLE_KEY=your_clerk_key`
+3. **Deploy** (automatic on push to `main`)
 
 ---
 
-## 📈 Future Enhancements
+## ⚙️ Configuration
 
+### Adjust Chunk Limits
+```python
+# backend/app/router/documents.py
+MAX_CHUNKS = 200  # Maximum chunks per document
+```
+
+### Modify Chunking Strategy
+```python
+# backend/app/services/chunking_service.py
+chunk_size = 1000      # Characters per chunk
+overlap = 100          # Character overlap
+```
+
+### Configure Virus Scanning
+```env
+# .env
+VIRUS_SCAN_REQUIRED=false  # Set to 'true' to enforce scanning
+```
+
+---
+
+## 📊 Performance Metrics
+
+| Metric | Value |
+|--------|-------|
+| Max File Size | 10 MB |
+| Chunk Size | 1000 chars |
+| Max Chunks/Doc | 200 (quota protection) |
+| Embedding Dimension | 768 (Gemini) / 1024 (Cohere) |
+| Query Response Time | 2-4 seconds |
+| Gemini Monthly Limit | 15,000 requests (free) |
+| Cohere Monthly Limit | 100 requests (free) |
+| Background Task Timeout | 60 seconds |
+
+---
+
+## 🐛 Known Limitations
+
+- Large documents (1000+ chunks) truncated to 200 chunks
+- Scanned PDFs require OCR (not implemented)
+- No conversation memory across sessions
+- Document list limited to 1000 documents per user
+- VirusTotal free tier: 4 requests/minute
+
+---
+
+## 🗺️ Roadmap
+
+- [ ] Streaming responses (SSE/WebSocket)
 - [ ] Multi-document cross-referencing
-- [ ] Citation tracking for answers
-- [ ] Document version history
-- [ ] Advanced search filters
-- [ ] Collaborative document annotations
-- [ ] Export Q&A history
+- [ ] Conversation memory with Redis
+- [ ] OCR for scanned PDFs (Tesseract)
+- [ ] Excel/PowerPoint support
+- [ ] Export conversations to PDF
 - [ ] Multi-language support
-- [ ] Voice-to-text queries
+- [ ] Advanced search filters
 
 ---
 
 ## 🤝 Contributing
 
-This project follows professional development practices:
+Contributions welcome! This project follows professional development practices:
 
 1. **Fork the repository**
-2. **Create feature branch** (`git checkout -b feature/amazing-feature`)
+2. **Create feature branch:** `git checkout -b feature/amazing-feature`
 3. **Write tests** for new functionality
-4. **Ensure all tests pass** (`pytest tests/`)
-5. **Commit changes** (`git commit -m 'Add amazing feature'`)
-6. **Push to branch** (`git push origin feature/amazing-feature`)
-7. **Open Pull Request** (CodeRabbit will review automatically)
+4. **Ensure tests pass:** `pytest tests/`
+5. **Commit changes:** `git commit -m 'Add amazing feature'`
+6. **Push to branch:** `git push origin feature/amazing-feature`
+7. **Open Pull Request** (CodeRabbit will auto-review)
 
 ---
 
 ## 📄 License
-
-This project is part of the ALX Software Engineering program portfolio.
+  
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
 ## 👨‍💻 Developer
 
-**Blessing Nejo**
-- Portfolio: [Your portfolio URL]
-- GitHub: [@BLESSEDEFEM](https://github.com/BLESSEDEFEM)
-- LinkedIn: [Your LinkedIn]
+**Blessing Nejo**  
+Junior AI Engineer | ALX Software Engineering Graduate  
+📍 Lagos, Nigeria
 
-Built with ❤️ as part of the journey to FAANG
+- 🔗 GitHub: [@BLESSEDEFEM](https://github.com/BLESSEDEFEM)
+- 💼 LinkedIn: [Blessing Nejo - https://www.linkedin.com/in/blessing-nejo-
+195673134]
+- 📧 Email: [nejoblessing72@gmail.com]
+
+**Built with ❤️ as part of the journey**
 
 ---
 
 ## 🙏 Acknowledgments
 
-- ALX Software Engineering Program
-- FastAPI and React communities
-- CodeRabbit for automated code reviews
+- **ALX Software Engineering Program** - For the training and mentorship
+- **CodeRabbit AI** - For automated code reviews and security audits
+- **FastAPI & React Communities** - For excellent documentation
+- **Cohere, Google, Pinecone** - For providing free tier APIs
 
-## 🚀 Deployment
+---
 
-### Railway Deployment
+## 📞 Support
 
-1. **Create Railway account:** https://railway.app
-2. **Create new project** from GitHub repo
-3. **Add PostgreSQL database** (Railway plugin)
-4. **Set environment variables:**
-   - All variables from `.env.example`
-   - Railway auto-sets `DATABASE_URL`
-5. **Deploy:** Automatic on push to main
+For issues, questions, or feature requests:
+- 🐛 Open an [issue](https://github.com/BLESSEDEFEM/rag-document-qa-system/issues)
+- 💬 Contact via [LinkedIn - Blessing Nejo - https://www.linkedin.com/in/blessing-nejo-
+195673134]
+- 📧 Email: [nejoblessing72@gmail.com]
 
-### Environment Variables Required:
-- `DATABASE_URL` - PostgreSQL connection
-- `PINECONE_API_KEY` - Vector database
-- `GEMINI_API_KEY` - AI model
-- `COHERE_API_KEY` - Embeddings
-- `VIRUSTOTAL_API_KEY` - Virus scanning
-- `CLERK_JWKS_URL` - Authentication
+---
+
+**⭐ If this project helped you, consider giving it a star!**
