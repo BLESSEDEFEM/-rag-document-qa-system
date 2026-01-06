@@ -16,10 +16,10 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Clerk Configuration
-CLERK_FRONTEND_API = "https://ideal-bonefish-40.clerk.accounts.dev"
+# Clerk Configuration - USE ENVIRONMENT VARIABLES
+CLERK_FRONTEND_API = os.getenv("CLERK_FRONTEND_API", "https://sunny-eel-93.clerk.accounts.dev")
 CLERK_ISSUER = CLERK_FRONTEND_API
-CLERK_JWKS_URL = f"{CLERK_FRONTEND_API}/.well-known/jwks.json"
+CLERK_JWKS_URL = os.getenv("CLERK_JWKS_URL", f"{CLERK_FRONTEND_API}/.well-known/jwks.json")
 
 # Security
 security = HTTPBearer()
