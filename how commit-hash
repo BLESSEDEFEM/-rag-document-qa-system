@@ -1,0 +1,100 @@
+[33m8d1b9c9[m Initial commit: Day 1 complete - FastAPI + PostgreSQL setup
+[33m55f7691[m RAG Project
+[33mefcaff5[m Add Git branching strategy documentation
+[33mca95368[m Revert singleton comparison for SQLAlchemy compatibility
+[33m28a76d7[m[33m ([m[1;32mfeature/docx-support[m[33m)[m Add Postman collection and API testing documentation
+[33ma281cc4[m Add Redis caching for document list with health check integration
+[33m624ae49[m[33m ([m[1;32mfeature/redis-cache[m[33m)[m Add Redis caching for document list with updated .gitignore
+[33maccd5a2[m Fix NULL byte handling in text extraction for PostgreSQL compatibility
+[33m7d0d63e[m[33m ([m[1;32mfeature/typescript[m[33m)[m Complete frontend polish with Tailwind CSS, animations, and mobile responsiveness
+[33mde9aaf1[m Add Railway deployment config
+[33m7982713[m[33m ([m[1;31morigin/dev[m[33m, [m[1;32mdev[m[33m)[m Update package files
+[33m6a18fd4[m Fix Procfile for Railway deployment
+[33mbabd0d8[m Add Procfile, requirements and railway.json for Railway Nixpacks deployment
+[33m965e47f[m Remove Windows-only dependency
+[33mf9e64bc[m Remove unused ML dependencies to reduce image size
+[33mdc28c73[m Disable local embeddings, use Pinecone only
+[33m5a13f02[m Remove local ML dependencies, use Pinecone auto-embeddings only
+[33me10993a[m Configure frontend for production deployment
+[33mb141d41[m Fix api.ts - remove hardcoded env var
+[33m35e4fed[m Add Vercel URL to CORS
+[33m5311bac[m Add Vercel URL to CORS
+[33m6e75533[m Fix embeddings logic and Pinecone storage
+[33m489a848[m Add backward compatible generate_embedding method
+[33mbf60f48[m Fix embeddings logic and Pinecone retrieval
+[33md694f32[m Fix: Implement real Gemini embeddings to resolve query issues
+[33m9798a38[m Fix: Implement real Gemini embeddings to resolve query issues
+[33mf08ad6b[m Update embedding service with Gemini
+[33m93646e7[m Update pinecone storage
+[33ma0310d1[m Fix fetch syntax errors in api.ts
+[33m50760a6[m Fix: update to the query and answer endpoints
+[33ma9effb2[m Switch to Cohere embeddings (1024 dims)
+[33m2942535[m Make Gemini key optional in LLM service
+[33md7d82de[m Add batch processing for Cohere embeddings (96 limit)
+[33m3779e7f[m Add batch processing for Cohere embeddings (96 limit) and rate limit
+[33m9c98d26[m Add chunk limit (200), increase chunk size (1000), add retry logic
+[33mcce0af2[m chat history, mobile responsive
+[33m3f7170c[m Add document filter support for queries
+[33m0d55e2b[m Add document search filter UI
+[33m235823b[m Add streaming support for answers
+[33m6e0a9fd[m Add streaming support, shadcn/ui components, LICENSE
+[33m80b1503[m Add Clerk authentication to frontend
+[33m5e1c3fa[m Add Clerk authentication with JWT verification and user isolation
+[33m0622e71[m Remove python-magic-bin (Windows-only dependency)
+[33m4734fbe[m Remove unused ML libraries to reduce Docker image size
+[33mdc49384[m Fix Clerk token verification to use API endpoint
+[33m5a4da1d[m Fix Clerk token timing issue
+[33mfff22b7[m Make auth optional - use get_current_user_optional
+[33m0a9eb8b[m Fix Clerk auth with proper JWKS verification
+[33m2d09c73[m Fix Clerk auth with proper JWKS verification
+[33md57ad9c[m Fix Clerk auth + clean requirements.txt
+[33m9c06c3a[m Fix Clerk JWKS URL - use standard API endpoint
+[33m17310bb[m Fix Clerk JWKS URL
+[33m563a1a7[m Fix Clerk JWKS URL
+[33mfe98bb2[m Fix Clerk JWKS URL
+[33m4b7d3c0[m Fix Clerk auth JWKS URL
+[33m441cf57[m Fix Clerk authentication for Railway deployment - improve JWKS fetching and token management
+[33m279aac8[m Fix Clerk authentication for Railway deployment - improve JWKS fetching and token management
+[33maa0b804[m Fix: lines breaking frontend
+[33m99c693a[m Add python-jose for Clerk JWT verification
+[33md2d7c82[m Implement production-ready Clerk JWT verification (official method)
+[33m9d8cd6c[m Update CORS with correct Vercel URLs
+[33m09651a6[m Add CI/CD with GitHub Actions
+[33m44e289c[m Fix all tests to work with current components and Clerk auth
+[33m722eb92[m Fix QueryAnswer: add null check for documents array, mock getDocuments in tests
+[33m7f0bd5e[m Fix App tests: properly mock Clerk without real key
+[33m699e154[m Remove unused shadcn/ui components causing TypeScript errors
+[33md83bcbb[m Fix TypeScript errors: add types, install deps, clean up tests
+[33m53a5724[m Fix TypeScript: remove unused children parameter in SignedIn mock
+[33m0e0d395[m Remove embedding tests that require sentence-transformers and hit API limits
+[33mc0976bb[m Mock Clerk authentication in tests to bypass 403 errors
+[33m06a32d1[m Fix test authentication using FastAPI dependency overrides
+[33m5af913c[m Initialize test database and create tables for tests
+[33mfa1c024[m Fix UnboundLocalError: initialize truncated and original_chunk_count
+[33m3ebc769[m Mock Cohere API in query tests to avoid rate limits in CI/CD
+[33m9f81d6a[m Fix mocking: patch embedding_service at router level with pytest fixture
+[33me5c247e[m Fix test assertion: accept actual 'no documents' message from app
+[33m191cacf[m[33m ([m[1;32mbackup-before-security-fixes[m[33m)[m docs: add comprehensive project documentation
+[33m8c6b69b[m security: fix critical vulnerabilities
+[33mfcc97c7[m security: add rate limiting to prevent API abuse
+[33mfe832c8[m security: add virus scanning for file uploads
+[33maf4ff34[m security: add background task processing for large files
+[33mfb686e6[m security: add input validation for document_id
+[33mc2da508[m security: add pagination to document list endpoint
+[33m0316df6[m quality: implement medium severity improvements
+[33mc82fefe[m docs: implement low priority improvements
+[33m6ee4d3d[m fix: ensure Gemini used for batch embeddings
+[33m0d15f53[m fix: address CodeRabbit critical security and code quality issues
+[33me3ff206[m README
+[33m4e05a79[m README
+[33mb0dd88c[m fix: add ProxyHeadersMiddleware for correct rate limiting
+[33mca4f9ca[m fix: use TrustedHostMiddleware only (Railway handles proxy headers)
+[33md337e23[m[33m ([m[1;31morigin/add-project-documentation[m[33m)[m fix: skip TrustedHostMiddleware in tests
+[33md3bc07b[m Merge pull request #2 from BLESSEDEFEM/add-project-documentation
+[33m73dc6af[m fix: handle paginated document list response
+[33m0354a8b[m fix: handle paginated document list response
+[33m8dd3999[m fix: handle paginated document list response
+[33mdd2e0a3[m fix: errors using keys errors with tool keys Readme syntax fix
+[33mc16aa3f[m chore: force Railway redeploy for new Clerk vars
+[33m10804b7[m fix: use env vars for Clerk URLs instead of hardcoded values
+[33mc394f57[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Final version for documentation
