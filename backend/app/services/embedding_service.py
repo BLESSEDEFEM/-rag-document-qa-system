@@ -10,10 +10,11 @@ import google.generativeai as genai
 logger = logging.getLogger(__name__)
 
 class EmbeddingService:
-    logger.info(f"Gemini key present: {bool(self.gemini_api_key)}, starts with: {self.gemini_api_key[:8] if self.gemini_api_key else 'MISSING'}")
+    
     def __init__(self):
         # Gemini (Primary - 15,000 free/month)
         self.gemini_api_key = os.getenv("GEMINI_API_KEY")
+        logger.info(f"Gemini key present: {bool(self.gemini_api_key)}, starts with: {self.gemini_api_key[:8] if self.gemini_api_key else 'MISSING'}")
         if self.gemini_api_key:
             genai.configure(api_key=self.gemini_api_key)
             logger.info("Gemini embedding service initialized")
