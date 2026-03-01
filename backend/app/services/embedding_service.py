@@ -35,7 +35,7 @@ class EmbeddingService:
 
         try:
             response = self.client.models.embed_content(
-                model="text-embedding-004",
+                model="models/embedding-001",
                 contents=text.strip()
             )
 
@@ -59,7 +59,7 @@ class EmbeddingService:
 
         try:
             response = self.client.models.embed_content(
-                model="text-embedding-004",
+                model="models/embedding-001",
                 contents=texts
             )
 
