@@ -28,26 +28,25 @@ class EmbeddingService:
             self.cohere_client = None
 
     def _gemini_batch(self, texts: List[str], task_type: str) -> List[List[float]]:
-        """Call Gemini v1 REST API directly - no SDK, no version issues."""
-        body = {
-            "requests": [
-                {
-                    "model": "models/text-embedding-004",
-                    "content": {"parts": [{"text": t}]},
-                    "taskType": task_type
-                }
-                for t in texts
-            ]
-        }
-        response = httpx.post(
-            GEMINI_EMBED_URL,
-            json=body,
-            params={"key": self.gemini_api_key},
-            timeout=30
-        )
-        response.raise_for_status()
-        data = response.json()
-        return [item["embedding"]["values"] for item in data["embeddings"]]
+        """Call embedContent individually for each text - v1 guaranteed."""
+        embeddings = []
+        for text in texts:
+            url = f"https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent"
+            body = {
+                "model": "models/text-embedding-004",
+                "content": {"parts": [{"text": text}]},
+                "taskType": task_type
+            }
+            response = httpx.post(
+                url,
+                json=body,
+                params={"key": self.gemini_api_key},
+                timeout=30
+            )
+            response.raise_for_status()
+            data = response.json()
+            embeddings.append(data["embedding"]["values"])
+        return embeddings
 
     def generate_embedding(self, text: str) -> List[float]:
         if not text or not text.strip():
