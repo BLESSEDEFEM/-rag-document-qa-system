@@ -68,7 +68,8 @@ class EmbeddingService:
                     texts=[text], model="embed-english-v3.0",
                     input_type="search_query", embedding_types=["float"]
                 )
-                return r.embeddings.float_[0]
+                embedding = r.embeddings.float_[0]
+                return embedding[:768]
             except Exception as e:
                 logger.error(f"Cohere failed: {e}")
  
@@ -96,7 +97,7 @@ class EmbeddingService:
                     texts=texts, model="embed-english-v3.0",
                     input_type="search_document", embedding_types=["float"]
                 )
-                return r.embeddings.float_
+                return [emb[:768] for emb in r.embeddings.float_]
             except Exception as e:
                 logger.error(f"Cohere failed: {e}")
  

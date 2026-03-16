@@ -261,7 +261,7 @@ async def upload_document(
         "size_bytes": document.file_size,
         "file_type": document.file_type,
         "status": "processing",
-        "upload_date": document.upload_date.isoformat()
+        "upload_date": document.upload_date.isoformat() + "Z"
     }
 
 
@@ -501,7 +501,7 @@ async def list_documents(
                 "file_size": doc.file_size,
                 "status": doc.status,
                 "page_count": doc.page_count,
-                "upload_date": doc.upload_date.isoformat(),
+                "upload_date": doc.upload_date.isoformat() + "Z",
                 "character_count": len(doc.extracted_text) if doc.extracted_text else 0
             }
             for doc in documents
@@ -545,5 +545,5 @@ async def documents_health():
     return {
         "status": "healthy",
         "router": "documents",
-        "timestamps": datetime.utcnow().isoformat()
+        "timestamps": datetime.utcnow().isoformat() + "Z"
     }
