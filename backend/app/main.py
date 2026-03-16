@@ -17,6 +17,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 # Local application imports
 from app.router import documents
+from app.router import health
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -78,6 +79,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Register routers
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
+app.include_router(health.router, prefix="/api", tags=["health"])
 
 # Root endpoint - health check
 @app.get("/", response_model=Dict[str, Any])
