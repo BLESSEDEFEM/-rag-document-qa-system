@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["health"])
  
  
-@router.get("/health")
+@router.api_route("/health", methods=["GET", "HEAD"])
 async def basic_health():
     """Basic health check - just confirms the server is running."""
     return {
@@ -28,7 +28,7 @@ async def basic_health():
     }
  
  
-@router.get("/health/detailed")
+@router.api_route("/health/detailed", methods=["GET", "HEAD"])
 async def detailed_health(db: Session = Depends(get_db)):
     """
     Detailed health check - tests all critical services.
