@@ -108,7 +108,7 @@ async def process_document_background(
                             document.page_count = page_count
                             document.chunks = json.dumps(chunks)
                             document.chunk_count = chunk_count
-                            document.embedding_model = "text-embedding-004"
+                            document.embedding_model = "gemini-embedding-001"
                             document.embedding_dimension = 768
                             document.embedding_date = datetime.utcnow()
                             document.status = "ready"
