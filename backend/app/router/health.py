@@ -79,7 +79,8 @@ async def detailed_health(db: Session = Depends(get_db)):
     except Exception as e:
         errors["redis"] = str(e)
  
-    all_healthy = all(checks.values())
+    critical_services = {k: v for k, v in checks.items() if k != "redis"}
+    all_healthy = all(critical_services.values())
  
     return {
         "status": "healthy" if all_healthy else "degraded",
