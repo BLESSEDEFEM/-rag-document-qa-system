@@ -72,10 +72,10 @@ async def detailed_health(db: Session = Depends(get_db)):
  
     # Redis check
     try:
-        if cache_service.enabled:
+        if cache_service.is_connected():
             checks["redis"] = True
         else:
-            errors["redis"] = "Cache service disabled"
+            errors["redis"] = "Cache service not connected"
     except Exception as e:
         errors["redis"] = str(e)
  
