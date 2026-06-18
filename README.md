@@ -8,7 +8,7 @@ Blog post: I Built a Production RAG System in 3 Weeks — Here's What Actually B
 
 
 Architecture
-
+```
 ┌─────────────┐
 │   Browser   │
 └──────┬──────┘
@@ -28,7 +28,7 @@ Architecture
      ▼      ▼      ▼
 ┌─────────┐┌──────────┐┌──────────┐
 │Pinecone ││PostgreSQL││VirusTotal│
-│(Vectors)││ (Metadata)││  (Scan)  │
+│(Vectors)││(Metadata)││  (Scan)  │
 └────┬────┘└──────────┘└──────────┘
      │
      ▼
@@ -36,7 +36,7 @@ Architecture
 │ Gemini (primary)     │
 │ Cohere (fallback)    │
 └──────────────────────┘
-
+```
 How a query flows:
 
 
@@ -178,6 +178,7 @@ VirusTotal free tier: 4 scans/minute
 
 Project Structure
 
+```
 rag-document-qa-system/
 ├── backend/
 │   ├── app/
@@ -195,6 +196,7 @@ rag-document-qa-system/
 │   │   └── services/       # API client
 │   └── package.json
 └── README.md
+```
 
 
 License
